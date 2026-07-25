@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your ScoutAI Update — {{ slot_label }}</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0a0e1a;
+            font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+            color: #e2e8f0;
+        }
+        .container {
+            max-width: 620px;
+            margin: 0 auto;
+            padding: 40px 24px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid rgba(59, 130, 246, 0.3);
+        }
+        .logo {
+            font-size: 28px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: 0 0 8px 0;
+        }
+        .slot-badge {
+            display: inline-block;
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        .intro {
+            color: #94a3b8;
+            font-size: 15px;
+            line-height: 1.6;
+            margin-bottom: 28px;
+        }
+        .section {
+            margin-bottom: 36px;
+        }
+        .section-head {
+            display: block;
+            font-size: 13px;
+            font-weight: 700;
+            color: #60a5fa;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding-bottom: 10px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+        }
+        .article-card {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            border-left: 4px solid #3b82f6;
+            border-radius: 12px;
+            padding: 20px 24px;
+            margin-bottom: 16px;
+        }
+        .article-title {
+            font-size: 17px;
+            font-weight: 700;
+            color: #f1f5f9;
+            margin: 0 0 10px 0;
+            line-height: 1.3;
+        }
+        .article-summary {
+            font-size: 14px;
+            color: #94a3b8;
+            line-height: 1.6;
+            margin: 0 0 12px 0;
+        }
+        .article-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .source-link {
+            color: #3b82f6;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .relevance-badge {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ade80;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .closing {
+            text-align: center;
+            color: #64748b;
+            font-size: 14px;
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid rgba(59, 130, 246, 0.15);
+        }
+        .footer {
+            text-align: center;
+            color: #475569;
+            font-size: 11px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">ScoutAI</div>
+            <span class="slot-badge">{{ slot_label }} Digest</span>
+        </div>
+
+        <p class="intro">
+            Hey {{ user_name }} — here {% if topic_count == 1 %}is your update{% else %}are your {{ topic_count }} updates{% endif %}
+            for this delivery, curated and condensed.
+        </p>
+
+        {% for section in sections %}
+        <div class="section">
+            <span class="section-head">{{ section.topic_name }}</span>
+            {% for article in section.articles %}
+            <div class="article-card">
+                <h3 class="article-title">{{ article.title }}</h3>
+                <p class="article-summary">{{ article.summary }}</p>
+                <div class="article-meta">
+                    <a href="{{ article.source_url }}" class="source-link">Read on {{ article.source_name }} &rarr;</a>
+                    <span class="relevance-badge">{{ "%.0f"|format(article.relevance_score * 100) }}% relevant</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+
+        <p class="closing">That's everything for {{ slot_label }}. See you next time.</p>
+
+        <div class="footer">
+            <p>Powered by <strong>ScoutAI</strong> — Your Personal News Curator</p>
+        </div>
+    </div>
+</body>
+</html>
