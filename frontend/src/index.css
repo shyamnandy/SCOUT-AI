@@ -151,6 +151,7 @@ select.input-field { cursor: pointer; appearance: none;
 }
 .navbar-brand { display: flex; align-items: center; gap: 8px; font-family: var(--serif); font-size: 23px; font-weight: 700; color: var(--ink); }
 .navbar-brand .dot { color: var(--accent); }
+.navbar-logo { display: block; object-fit: contain; }
 .navbar-links { display: flex; align-items: center; gap: 8px; }
 .navbar-links .divider { width: 1px; height: 18px; background: var(--border); margin: 0 4px; }
 

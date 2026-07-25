@@ -1,6 +1,6 @@
 # 📰 ScoutAI — AI-Powered Personal News Curator
 
-> Stop scrolling. Start knowing. ScoutAI curates personalized newsletters from 6 trusted sources — delivered to your inbox on your schedule.
+> Stop scrolling. Start knowing. ScoutAI curates personalized newsletters from 6 trusted sources — delivered to your inbox on your scheduleEEEEEEEEEEEEEE.
 
 ## ✨ Features
 

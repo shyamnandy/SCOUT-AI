@@ -1,13 +1,20 @@
 """MongoDB async connection using motor."""
 
+import certifi
 from motor.motor_asyncio import AsyncIOMotorClient
 from app.config import get_settings
 
 settings = get_settings()
 
+# Verify the Atlas server certificate against certifi's CA bundle. Never use
+# tlsInsecure/tlsAllowInvalidCertificates here — that disables certificate and
+# hostname checks, letting anyone who can intercept the connection impersonate
+# the database and capture credentials.
 client = AsyncIOMotorClient(
     settings.MONGO_URI,
-    tlsInsecure=True,
+    tlsCAFile=certifi.where(),
+    serverSelectionTimeoutMS=10000,
+    connectTimeoutMS=10000,
 )
 db = client[settings.DB_NAME]
 

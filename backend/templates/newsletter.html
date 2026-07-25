@@ -3,146 +3,158 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ topic_name }} — ScoutAI Newsletter</title>
+    <title>{{ topic_name }} — ScoutAI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         body {
             margin: 0;
             padding: 0;
-            background-color: #0a0e1a;
-            font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
-            color: #e2e8f0;
+            background-color: #efebe1;
+            font-family: 'Inter', -apple-system, 'Segoe UI', Arial, sans-serif;
+            color: #1c202b;
         }
         .container {
-            max-width: 620px;
+            max-width: 600px;
             margin: 0 auto;
-            padding: 40px 24px;
+            padding: 36px 20px 48px;
         }
-        .header {
+        .masthead {
+            background: #f6f3ec;
+            border: 1px solid rgba(28, 32, 43, 0.12);
+            border-radius: 14px;
+            padding: 30px 24px 26px;
             text-align: center;
-            margin-bottom: 32px;
-            padding-bottom: 24px;
-            border-bottom: 1px solid rgba(59, 130, 246, 0.3);
-        }
-        .logo {
-            font-size: 28px;
-            font-weight: 800;
-            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin: 0 0 8px 0;
-        }
-        .topic-badge {
-            display: inline-block;
-            background: rgba(59, 130, 246, 0.15);
-            color: #60a5fa;
-            padding: 6px 16px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-        }
-        .greeting {
-            color: #94a3b8;
-            font-size: 15px;
-            line-height: 1.6;
             margin-bottom: 28px;
         }
-        .article-card {
-            background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
-            border: 1px solid rgba(59, 130, 246, 0.15);
-            border-left: 4px solid #3b82f6;
-            border-radius: 12px;
-            padding: 20px 24px;
-            margin-bottom: 16px;
+        .masthead-logo {
+            display: block;
+            margin: 0 auto 12px;
         }
-        .article-card:nth-child(even) {
-            border-left-color: #8b5cf6;
+        .masthead-brand {
+            font-family: 'Fraunces', Georgia, serif;
+            font-weight: 700;
+            font-size: 26px;
+            color: #1c202b;
+            margin: 0;
         }
-        .article-card:nth-child(3n) {
-            border-left-color: #06b6d4;
+        .masthead-brand .dot { color: #b9683f; }
+        .masthead-date {
+            font-family: 'Fraunces', Georgia, serif;
+            font-style: italic;
+            font-size: 13px;
+            color: #9b9587;
+            letter-spacing: 0.3px;
+            margin: 6px 0 18px;
+        }
+        .masthead-rule {
+            border: none;
+            border-top: 1px solid rgba(28, 32, 43, 0.12);
+            margin: 0 0 16px;
+        }
+        .masthead-eyebrow {
+            font-family: 'Fraunces', Georgia, serif;
+            font-style: italic;
+            font-weight: 500;
+            font-size: 12.5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #7a4429;
+            margin: 0;
+        }
+        .greeting {
+            font-size: 15px;
+            line-height: 1.65;
+            color: #3d4250;
+            margin: 0 0 30px;
+            padding: 0 4px;
+        }
+        .article {
+            padding: 0 4px 24px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid rgba(28, 32, 43, 0.1);
+        }
+        .article:last-of-type {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        .article-source {
+            font-size: 11.5px;
+            font-weight: 700;
+            color: #7a4429;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin: 0 0 8px;
         }
         .article-title {
-            font-size: 17px;
+            font-family: 'Fraunces', Georgia, serif;
             font-weight: 700;
-            color: #f1f5f9;
-            margin: 0 0 10px 0;
+            font-size: 20px;
             line-height: 1.3;
+            color: #1c202b;
+            margin: 0 0 10px;
         }
         .article-summary {
-            font-size: 14px;
-            color: #94a3b8;
-            line-height: 1.6;
-            margin: 0 0 12px 0;
+            font-size: 14.5px;
+            line-height: 1.65;
+            color: #64605a;
+            margin: 0 0 12px;
         }
-        .article-meta {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .source-link {
-            color: #3b82f6;
-            text-decoration: none;
+        .article-link {
             font-size: 13px;
             font-weight: 600;
-        }
-        .source-link:hover {
-            text-decoration: underline;
-        }
-        .relevance-badge {
-            background: rgba(34, 197, 94, 0.15);
-            color: #4ade80;
-            padding: 3px 10px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 600;
+            color: #7a4429;
+            text-decoration: none;
+            border-bottom: 1px solid rgba(122, 68, 41, 0.35);
+            padding-bottom: 1px;
         }
         .closing {
+            font-family: 'Fraunces', Georgia, serif;
+            font-style: italic;
             text-align: center;
-            color: #64748b;
-            font-size: 14px;
-            margin-top: 32px;
-            padding-top: 24px;
-            border-top: 1px solid rgba(59, 130, 246, 0.15);
+            font-size: 15px;
+            color: #3d4250;
+            margin: 8px 4px 0;
+            padding-top: 26px;
+            border-top: 1px solid rgba(28, 32, 43, 0.12);
         }
         .footer {
             text-align: center;
-            color: #475569;
-            font-size: 11px;
-            margin-top: 20px;
+            color: #9b9587;
+            font-size: 11.5px;
+            line-height: 1.8;
+            margin-top: 28px;
         }
-        .footer a {
-            color: #475569;
-            text-decoration: underline;
-        }
+        .footer strong { color: #64605a; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <div class="logo">📰 ScoutAI</div>
-            <span class="topic-badge">{{ topic_name }}</span>
+        <div class="masthead">
+            {% if logo_src %}
+            <img class="masthead-logo" src="{{ logo_src }}" width="40" height="40" alt="ScoutAI">
+            {% endif %}
+            <p class="masthead-brand">ScoutAI<span class="dot">.</span></p>
+            <p class="masthead-date">{{ today }}</p>
+            <hr class="masthead-rule">
+            <p class="masthead-eyebrow">Your {{ topic_name }} Briefing</p>
         </div>
 
         <p class="greeting">{{ greeting }}</p>
 
         {% for article in articles %}
-        <div class="article-card">
+        <div class="article">
+            <p class="article-source">{{ article.source_name }}</p>
             <h3 class="article-title">{{ article.title }}</h3>
             <p class="article-summary">{{ article.summary }}</p>
-            <div class="article-meta">
-                <a href="{{ article.source_url }}" class="source-link">Read on {{ article.source_name }} →</a>
-                <span class="relevance-badge">{{ "%.0f"|format(article.relevance_score * 100) }}% relevant</span>
-            </div>
+            <a href="{{ article.source_url }}" class="article-link">Continue reading &rarr;</a>
         </div>
         {% endfor %}
 
         <p class="closing">{{ closing }}</p>
 
         <div class="footer">
-            <p>Powered by <strong>ScoutAI</strong> — Your Personal News Curator</p>
-            <p>Curated with ❤️ for {{ user_name }}</p>
+            <p><strong>ScoutAI</strong> — Your Personal News Curator</p>
+            <p>Curated for {{ user_name }}</p>
         </div>
     </div>
 </body>

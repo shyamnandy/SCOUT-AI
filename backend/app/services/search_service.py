@@ -1,6 +1,7 @@
 """Web search service using Tavily to find legitimate news sources."""
 
 from langchain_tavily import TavilySearch
+from langchain_tavily.tavily_search import TavilySearchAPIWrapper
 from app.config import get_settings, get_llm
 from pydantic import BaseModel, Field
 
@@ -15,11 +16,20 @@ class SourceSelection(BaseModel):
 
 
 def get_search_tool():
-    """Get the Tavily search tool configured for news."""
+    """Get the Tavily search tool configured for news.
+
+    The key must go through TavilySearchAPIWrapper: TavilySearch itself has
+    no `api_key` field and is configured with `extra="ignore"`, so passing
+    one directly is silently dropped and the wrapper then falls back to a
+    TAVILY_API_KEY environment variable that the Celery worker doesn't have.
+    """
+    if not settings.TAVILY_API_KEY:
+        raise RuntimeError("TAVILY_API_KEY is not configured")
+
     return TavilySearch(
         max_results=15,
         topic="news",
-        api_key=settings.TAVILY_API_KEY,
+        api_wrapper=TavilySearchAPIWrapper(tavily_api_key=settings.TAVILY_API_KEY),
     )
 
 
@@ -47,7 +57,7 @@ async def search_for_topic(keywords: list[str], topic_name: str) -> list[dict]:
         print(f"Tavily search error: {e}")
         return []
 
-    # If results is a string (sometimes Tavily returns a summary string), 
+    # If results is a string (sometimes Tavily returns a summary string),
     # try a different approach
     if isinstance(raw_results, str):
         # Do a second search with different query formation
@@ -66,10 +76,28 @@ async def search_for_topic(keywords: list[str], topic_name: str) -> list[dict]:
             "source_name": "Web Search",
         }]
 
-    # Use AI to select the 6 best, most legitimate sources
-    if isinstance(raw_results, list) and len(raw_results) > 0:
-        return await select_best_sources(raw_results, topic_name, keywords)
+    articles = _normalize_results(raw_results)
 
+    # Use AI to select the 6 best, most legitimate sources
+    if articles:
+        return await select_best_sources(articles, topic_name, keywords)
+
+    print(f"Tavily returned no usable results for '{topic_name}'")
+    return []
+
+
+def _normalize_results(raw) -> list[dict]:
+    """
+    Coerce a Tavily response into a plain list of article dicts.
+
+    TavilySearch returns a dict shaped like {"query": ..., "results": [...]},
+    not a bare list, so callers must unwrap it before use.
+    """
+    if isinstance(raw, dict):
+        results = raw.get("results", [])
+        return results if isinstance(results, list) else []
+    if isinstance(raw, list):
+        return raw
     return []
 
 

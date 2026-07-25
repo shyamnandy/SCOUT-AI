@@ -2,8 +2,15 @@
 
 Delivery runs in two phases so content is fresh but ready on time:
 
-  T-20min  curate_topic_for_slot  → search/scrape/summarize, save a draft
-  T        dispatch_slot          → send every draft for that user+slot
+  T-5min  curate_topic_for_slot  → search/scrape/summarize, save a draft
+  T       dispatch_slot          → send every draft for that user+slot
+
+A 5-minute lead is generous for the pipeline itself (a real run measures
+~20-90s), but a short lead can still land after the curate window has
+already passed relative to the beat tick — e.g. a topic created 2 minutes
+before its own slot. dispatch_slot self-heals that case: if a due topic
+has no draft yet when its slot arrives, it curates synchronously right
+there instead of silently skipping delivery.
 
 Progress is tracked per (topic, slot, local date), so a topic scheduled at
 08:00, 14:00 and 22:00 delivers three times a day with different content.
@@ -15,17 +22,24 @@ from bson import ObjectId
 from worker.celery_app import celery_app
 
 # How long before a delivery slot curation starts.
-CURATE_LEAD_MINUTES = 20
+CURATE_LEAD_MINUTES = 5
 # Beat runs every 5 minutes; match the matching tolerance to that.
 WINDOW_MINUTES = 5
 
 
 def _get_sync_db():
     """Get a synchronous MongoDB client for Celery tasks."""
+    import certifi
     from pymongo import MongoClient
     from app.config import get_settings
     settings = get_settings()
-    client = MongoClient(settings.MONGO_URI, tlsInsecure=True)
+    # Certificate verification stays on — see app/database.py.
+    client = MongoClient(
+        settings.MONGO_URI,
+        tlsCAFile=certifi.where(),
+        serverSelectionTimeoutMS=10000,
+        connectTimeoutMS=10000,
+    )
     return client[settings.DB_NAME]
 
 
@@ -82,8 +96,8 @@ def check_and_dispatch_newsletters():
     """
     Periodic scheduler (every 5 min via Celery Beat).
 
-    Enqueues curation 20 minutes ahead of each slot, and dispatch at the
-    slot itself. Both downstream tasks are idempotent, so overlapping
+    Enqueues curation CURATE_LEAD_MINUTES ahead of each slot, and dispatch
+    at the slot itself. Both downstream tasks are idempotent, so overlapping
     windows can't double-send.
     """
     db = _get_sync_db()
@@ -137,12 +151,26 @@ def check_and_dispatch_newsletters():
     }
 
 
+def _curate_and_save(db, topic: dict, user: dict, slot: str | None, local_date: str | None) -> bool:
+    """Run the pipeline for one topic and persist the draft. Returns True if a draft was produced."""
+    from pymongo.errors import DuplicateKeyError
+    from app.services.pipeline import curate_topic, build_draft_doc
+
+    payload = _run_async(curate_topic(topic, user))
+    if not payload:
+        return False
+    try:
+        db.newsletters.insert_one(build_draft_doc(topic, user, payload, slot, local_date))
+    except DuplicateKeyError:
+        # Scheduled curation landed first (race with a self-heal call) — fine, draft exists.
+        pass
+    return True
+
+
 @celery_app.task(name="worker.tasks.curate_topic_for_slot", bind=True, max_retries=2)
 def curate_topic_for_slot(self, topic_id: str, slot: str, local_date: str):
     """Curate one topic for one delivery slot and store it as a draft."""
     try:
-        from app.services.pipeline import curate_topic, build_draft_doc
-
         db = _get_sync_db()
 
         topic = db.topics.find_one({"_id": ObjectId(topic_id)})
@@ -157,13 +185,10 @@ def curate_topic_for_slot(self, topic_id: str, slot: str, local_date: str):
         if not user:
             return {"status": "skipped", "reason": "User not found"}
 
-        payload = _run_async(curate_topic(topic, user))
-        if not payload:
+        if not _curate_and_save(db, topic, user, slot, local_date):
             return {"status": "failed", "reason": "No usable content"}
 
-        db.newsletters.insert_one(build_draft_doc(topic, user, payload, slot, local_date))
         print(f"[curate] Draft ready: '{topic['name']}' @ {slot} ({local_date})")
-
         return {"status": "success", "topic": topic["name"], "slot": slot}
 
     except Exception as exc:
@@ -184,6 +209,30 @@ def dispatch_slot(self, user_id: str, slot: str, local_date: str):
         from app.services.email_service import send_newsletter_email
 
         db = _get_sync_db()
+        user = db.users.find_one({"_id": ObjectId(user_id)})
+        if not user:
+            return {"status": "skipped", "reason": "User not found"}
+
+        # Self-heal: a topic due this slot with no draft yet (short lead time,
+        # a missed curate window, worker downtime) gets curated right now
+        # instead of silently being left out of the send.
+        due_topics = list(db.topics.find({
+            "user_id": user_id,
+            "is_active": True,
+            "delivery_times": slot,
+        }))
+        already_curated = {
+            d["topic_id"]
+            for d in db.newsletters.find(
+                {"user_id": user_id, "slot": slot, "local_date": local_date},
+                {"topic_id": 1},
+            )
+        }
+        for topic in due_topics:
+            if str(topic["_id"]) in already_curated:
+                continue
+            print(f"[dispatch] Late curation for '{topic['name']}' @ {slot} — no draft yet")
+            _curate_and_save(db, topic, user, slot, local_date)
 
         drafts = list(db.newsletters.find({
             "user_id": user_id,
@@ -193,10 +242,6 @@ def dispatch_slot(self, user_id: str, slot: str, local_date: str):
         }))
         if not drafts:
             return {"status": "skipped", "reason": "Nothing queued for this slot"}
-
-        user = db.users.find_one({"_id": ObjectId(user_id)})
-        if not user:
-            return {"status": "skipped", "reason": "User not found"}
 
         batch = user.get("batch_delivery", True)
         slot_label = _slot_label(slot)
