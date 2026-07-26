@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.schemas.topic import TopicCreateRequest, TopicUpdateRequest, TopicResponse
 from app.database import topics_collection, users_collection
 from app.models.topic import create_topic_doc
-from app.utils import get_current_user
+from app.utils import get_current_user, require_own_keys
 from bson import ObjectId
 from datetime import datetime, timezone
 
@@ -43,6 +43,7 @@ async def create_topic(
     user: dict = Depends(get_current_user),
 ):
     """Create a new topic subscription."""
+    require_own_keys(user)
     topic_doc = create_topic_doc(
         user_id=user["id"],
         name=data.name,

@@ -5,7 +5,7 @@ import Icon from './Icon';
 import { sendChatMessage, confirmChatTopic, resetChatSession, getErrorMessage } from '../services/api';
 
 const GREETING = { role: 'assistant', content: "Hey there — I'm your ScoutAI assistant. Tell me what topic or area you want to stay updated on: a technology, a sports league, a financial market, a world event..." };
-const LOCKED_TOAST = { message: "You haven't set your Groq API key yet — set it, takes about a minute." };
+const LOCKED_TOAST = { message: "You haven't set your Groq and Resend API keys yet — set them, takes about a minute." };
 
 export default function ChatOnboarding({ onTopicReady, locked = false }) {
   const [messages, setMessages] = useState([GREETING]);
@@ -96,7 +96,7 @@ export default function ChatOnboarding({ onTopicReady, locked = false }) {
 
       {locked && (
         <div className="chat-lock-banner" onClick={redirectToSetKey}>
-          <Icon name="lock" size={13} /> Set your Groq API key to start chatting
+          <Icon name="lock" size={13} /> Set your Groq and Resend API keys to start chatting
         </div>
       )}
 

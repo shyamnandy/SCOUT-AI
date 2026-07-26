@@ -6,7 +6,7 @@ from app.services.chat_service import chat_onboarding, extract_single_topic
 from app.services.crypto_service import decrypt
 from app.database import chat_sessions_collection, topics_collection, users_collection
 from app.models.topic import create_topic_doc
-from app.utils import get_current_user
+from app.utils import get_current_user, require_own_keys
 from bson import ObjectId
 from datetime import datetime, timezone
 
@@ -22,6 +22,7 @@ async def send_onboarding_message(
     Send a message in the onboarding conversation.
     The AI responds conversationally and may extract topics when ready.
     """
+    require_own_keys(user)
     user_id = user["id"]
 
     # Get or create chat session
@@ -77,6 +78,7 @@ async def confirm_topic(user: dict = Depends(get_current_user)):
     user confirmation (button click), then reset the session so the next
     chat starts clean for a new topic.
     """
+    require_own_keys(user)
     session = await chat_sessions_collection.find_one({"user_id": user["id"]})
     if not session or not session.get("messages"):
         raise HTTPException(status_code=400, detail="No active conversation to confirm")

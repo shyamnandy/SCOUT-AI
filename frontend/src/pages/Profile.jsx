@@ -10,11 +10,11 @@ const PROVIDERS = [
     hasField: 'has_resend_key',
     name: 'Resend',
     icon: 'mail',
-    required: false,
+    required: true,
     placeholder: 're_...',
     getUrl: 'https://resend.com/api-keys',
     getLabel: 'resend.com/api-keys',
-    blurb: 'Powers newsletter delivery. Without your own key, mail can only reach the shared account’s own inbox.',
+    blurb: 'Powers newsletter delivery. Required before you can start a chat — the shared key can only email its own account owner.',
   },
   {
     field: 'groq_api_key',
@@ -192,9 +192,8 @@ export default function Profile() {
           <div>
             <div className="profile-row-label">Your Own API Keys</div>
             <div className="profile-row-hint">
-              A Groq key is required to start a chat — it powers the AI. A Resend key is optional
-              but recommended, since the shared key can usually only email its own account owner.
-              Both are free and take about a minute to grab.
+              A Groq key powers the AI, a Resend key powers delivery — both are required before you
+              can start a chat. Both are free and take about a minute to grab.
             </div>
           </div>
         </div>

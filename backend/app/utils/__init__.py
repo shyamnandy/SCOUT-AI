@@ -34,3 +34,14 @@ async def get_current_user(
 
     user["id"] = str(user["_id"])
     return user
+
+
+def require_own_keys(user: dict):
+    """Both a Groq and a Resend key are required before a topic can be created
+    or chatted about — enforced server-side too since a frontend lock alone is
+    trivially bypassable via direct API calls."""
+    if not user.get("groq_api_key") or not user.get("resend_api_key"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Set your own Groq and Resend API keys in Profile before continuing.",
+        )
