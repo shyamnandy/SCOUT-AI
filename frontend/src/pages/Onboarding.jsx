@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import ChatOnboarding from '../components/ChatOnboarding';
 import TopicConfirmCard from '../components/TopicConfirmCard';
 import Icon from '../components/Icon';
@@ -11,7 +10,6 @@ export default function Onboarding() {
   const [pendingTopic, setPendingTopic] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const navigate = useNavigate();
   const { setUser, user } = useAuth();
 
   // Each confirmed topic is created right away, so it shows up on the
@@ -72,17 +70,6 @@ export default function Onboarding() {
             onDiscard={() => setPendingTopic(null)}
           />
         </div>
-      </div>
-
-      <div className="onboarding-footer">
-        <button
-          className="btn btn-primary btn-lg"
-          onClick={() => navigate('/dashboard')}
-          disabled={addedTopics.length === 0}
-        >
-          {`Go to Dashboard${addedTopics.length ? ` (${addedTopics.length} added)` : ''}`}
-          <Icon name="arrowRight" size={16} />
-        </button>
       </div>
     </div>
   );

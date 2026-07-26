@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Icon from './Icon';
+import TimePicker from './TimePicker';
 
 export default function TopicForm({ topic, onSubmit, onClose }) {
   const [name, setName] = useState(topic?.name || '');
@@ -74,7 +75,7 @@ export default function TopicForm({ topic, onSubmit, onClose }) {
             <label>Delivery Times</label>
             {deliveryTimes.map((t, i) => (
               <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
-                <input type="time" className="input-field" value={t} onChange={(e) => updateTime(i, e.target.value)} />
+                <TimePicker value={t} onChange={(val) => updateTime(i, val)} />
                 {deliveryTimes.length > 1 && <button type="button" className="btn btn-danger btn-sm" onClick={() => removeTime(i)}>×</button>}
               </div>
             ))}

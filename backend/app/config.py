@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     # Frontend
     FRONTEND_URL: str = "http://localhost:5173"
 
+    # Shared secret an external scheduler (e.g. cron-job.org) must send
+    # to trigger POST /api/cron/tick. Empty disables the endpoint.
+    CRON_SECRET: str = ""
+
     class Config:
         env_file = ".env"
         extra = "allow"

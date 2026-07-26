@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TopicCard from '../components/TopicCard';
 import TopicForm from '../components/TopicForm';
+import TimePicker from '../components/TimePicker';
 import Icon from '../components/Icon';
 import {
-  getTopics, createTopic, updateTopic, deleteTopic, toggleTopic,
+  getTopics, updateTopic, deleteTopic, toggleTopic,
   getSlots, addSlot, updateSlot, deleteSlot, getErrorMessage,
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -20,10 +21,9 @@ export default function Dashboard() {
   const [topics, setTopics] = useState([]);
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
   const [editingTopic, setEditingTopic] = useState(null);
   const [dragOver, setDragOver] = useState(null);
-  const [newSlotTime, setNewSlotTime] = useState('');
+  const [newSlotTime, setNewSlotTime] = useState('08:00');
   const [addingSlot, setAddingSlot] = useState(false);
   const [editingSlot, setEditingSlot] = useState(null);
   const [editSlotValue, setEditSlotValue] = useState('');
@@ -46,12 +46,6 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleCreate = async (data) => {
-    await createTopic(data);
-    setShowForm(false);
-    fetchAll();
   };
 
   const handleUpdate = async (data) => {
@@ -208,20 +202,18 @@ export default function Dashboard() {
     >
       <div className="board-row-head">
         {!isPool && editingSlot === time ? (
-          <span className="board-row-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span className="board-row-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={(e) => e.stopPropagation()}>
             <Icon name={icon} size={15} />
-            <input
-              type="time"
-              className="input-field input-field-sm"
+            <TimePicker
+              className="input-field-sm"
               value={editSlotValue}
               autoFocus
-              onChange={(e) => setEditSlotValue(e.target.value)}
+              onChange={setEditSlotValue}
               onBlur={() => handleEditSlot(time)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleEditSlot(time);
                 if (e.key === 'Escape') setEditingSlot(null);
               }}
-              onClick={(e) => e.stopPropagation()}
             />
           </span>
         ) : (
@@ -261,9 +253,17 @@ export default function Dashboard() {
           <h1>Your Topics</h1>
           <p>Drag a topic into any number of time slots — use × on a card to remove it from one</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowForm(true)}>
-          <Icon name="plus" size={16} /> New Topic
-        </button>
+        {addingSlot ? (
+          <div className="add-slot-form">
+            <TimePicker value={newSlotTime} onChange={setNewSlotTime} autoFocus />
+            <button className="btn btn-primary btn-sm" onClick={handleAddSlot} disabled={!newSlotTime}>Add Slot</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => { setAddingSlot(false); setNewSlotTime('08:00'); }}>Cancel</button>
+          </div>
+        ) : (
+          <button className="btn btn-primary" onClick={() => setAddingSlot(true)}>
+            <Icon name="plus" size={16} /> Add Time Slot
+          </button>
+        )}
       </div>
 
       {error && (
@@ -289,26 +289,6 @@ export default function Dashboard() {
               isPool: false,
             })
           )}
-
-          <div className="board-row board-row-add">
-            {addingSlot ? (
-              <div className="add-slot-form">
-                <input
-                  type="time"
-                  className="input-field"
-                  value={newSlotTime}
-                  onChange={(e) => setNewSlotTime(e.target.value)}
-                  autoFocus
-                />
-                <button className="btn btn-primary btn-sm" onClick={handleAddSlot} disabled={!newSlotTime}>Add Slot</button>
-                <button className="btn btn-secondary btn-sm" onClick={() => { setAddingSlot(false); setNewSlotTime(''); }}>Cancel</button>
-              </div>
-            ) : (
-              <button className="add-slot-btn" onClick={() => setAddingSlot(true)}>
-                <Icon name="plus" size={16} /> <span>New Time Slot</span>
-              </button>
-            )}
-          </div>
         </div>
 
         <aside className="board-pool">
@@ -354,14 +334,13 @@ export default function Dashboard() {
         <div className="empty-state">
           <div className="empty-state-icon"><Icon name="inbox" size={24} /></div>
           <h3>No Topics Yet</h3>
-          <p>Create your first topic to start receiving curated newsletters</p>
-          <button className="btn btn-primary" onClick={() => setShowForm(true)}>
-            <Icon name="plus" size={16} /> Create Topic
+          <p>Chat with the AI to create your first topic and start receiving curated newsletters</p>
+          <button className="btn btn-primary" onClick={() => navigate('/chat')}>
+            <Icon name="chat" size={16} /> Start a Chat
           </button>
         </div>
       )}
 
-      {showForm && <TopicForm onSubmit={handleCreate} onClose={() => setShowForm(false)} />}
       {editingTopic && <TopicForm topic={editingTopic} onSubmit={handleUpdate} onClose={() => setEditingTopic(null)} />}
     </div>
   );

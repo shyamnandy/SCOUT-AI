@@ -130,7 +130,9 @@ def check_and_dispatch_newsletters():
             if curate_date and not db.newsletters.find_one(
                 {"topic_id": topic_id, "slot": slot, "local_date": curate_date}
             ):
-                curate_topic_for_slot.delay(topic_id, slot, curate_date)
+                # .apply() runs in-process (no broker needed) so this scheduler
+                # works whether or not Celery/Redis are actually deployed.
+                curate_topic_for_slot.apply(args=(topic_id, slot, curate_date))
                 curated += 1
 
             # Phase 2 — dispatch everything queued for this user+slot.
@@ -139,7 +141,7 @@ def check_and_dispatch_newsletters():
                 key = (topic["user_id"], slot, send_date)
                 if key not in seen_dispatch:
                     seen_dispatch.add(key)
-                    dispatch_slot.delay(topic["user_id"], slot, send_date)
+                    dispatch_slot.apply(args=(topic["user_id"], slot, send_date))
                     dispatched += 1
 
     return {

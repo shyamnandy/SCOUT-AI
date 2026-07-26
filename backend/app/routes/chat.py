@@ -116,6 +116,7 @@ async def finish_onboarding(
             name=topic.name,
             keywords=topic.keywords,
             category=topic.category,
+            description=topic.description,
             delivery_times=data.delivery_times,
             timezone_str=data.timezone,
             lifecycle=topic.suggested_lifecycle,

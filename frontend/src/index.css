@@ -121,6 +121,29 @@ select.input-field { cursor: pointer; appearance: none;
   background-repeat: no-repeat; background-position: right 14px center;
 }
 
+/* ===== Time Picker (replaces the native OS time widget) ===== */
+.time-picker {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 9px 12px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.time-picker:focus-within { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(28,32,43,0.06); }
+.time-picker-icon { color: var(--text-muted); margin-right: 4px; flex-shrink: 0; }
+.time-picker-sep { color: var(--text-muted); font-weight: 600; }
+.time-picker-select {
+  background: transparent; border: none; outline: none; cursor: pointer;
+  color: var(--text-primary); font-family: var(--sans); font-size: 15px; font-weight: 600;
+  appearance: none; padding: 0 2px; text-align: right;
+}
+.time-picker-select:hover { color: var(--accent-ink); }
+.time-picker-period {
+  font-size: 11.5px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase;
+  color: var(--accent-ink); margin-left: 4px; text-align: left;
+}
+.input-field-sm .time-picker { padding: 4px 8px; }
+.input-field-sm .time-picker-select { font-size: 14px; }
+
 /* ===== Chips / Tags ===== */
 .chip {
   display: inline-flex; align-items: center; gap: 6px;
@@ -307,23 +330,11 @@ select.input-field { cursor: pointer; appearance: none;
 .icon-btn:hover { color: var(--ink); background: var(--bg-card); }
 .icon-btn.danger:hover { color: var(--accent-red); background: rgba(177,67,58,0.1); }
 
-/* Add-slot row */
-.board-row-add {
-  border-style: dashed; background: transparent; box-shadow: none;
-  display: flex; align-items: center; justify-content: center; padding: 8px;
-}
-.add-slot-btn {
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  background: transparent; border: none; cursor: pointer; width: 100%; padding: 16px;
-  color: var(--text-muted); font-family: var(--sans); font-size: 13.5px; font-weight: 600;
-  transition: color 0.2s;
-}
-.add-slot-btn:hover { color: var(--accent-ink); }
-.add-slot-form { display: flex; align-items: center; gap: 10px; padding: 8px; flex-wrap: wrap; justify-content: center; }
-.add-slot-form .input-field { width: auto; }
+/* Add-slot form, now inline in the page header */
+.add-slot-form { display: flex; align-items: center; gap: 10px; padding: 8px; flex-wrap: wrap; justify-content: flex-end; }
 
 /* ===== Chat UI ===== */
-.chat-container { display: flex; flex-direction: column; height: calc(100vh - 200px); max-height: 600px; }
+.chat-container { display: flex; flex-direction: column; height: calc(100vh - 340px); max-height: 420px; min-height: 320px; }
 .chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
 .chat-messages::-webkit-scrollbar { width: 6px; }
 .chat-messages::-webkit-scrollbar-track { background: transparent; }
@@ -348,7 +359,6 @@ select.input-field { cursor: pointer; appearance: none;
 /* ===== Onboarding Layout ===== */
 .onboarding-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 24px; align-items: start; }
 .onboarding-panel { display: flex; flex-direction: column; width: 100%; }
-.onboarding-footer { display: flex; justify-content: center; margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--border-soft); }
 
 .confirm-card { padding: 26px; }
 .confirm-card h3 { font-family: var(--serif); font-size: 19px; font-weight: 600; margin-bottom: 18px; }
@@ -370,13 +380,22 @@ select.input-field { cursor: pointer; appearance: none;
 .hero p { font-size: 17.5px; color: var(--text-secondary); line-height: 1.65; margin-bottom: 34px; max-width: 480px; }
 .hero-cta { display: flex; gap: 14px; flex-wrap: wrap; }
 
-.hero-card { padding: 28px; position: relative; max-width: 400px; margin-left: auto; }
-.hero-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
-.hero-card-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--ink); color: #fdfbf6; display: flex; align-items: center; justify-content: center; font-family: var(--serif); font-weight: 700; font-size: 15px; }
-.hero-card-name { font-weight: 700; font-size: 14.5px; }
+.hero-card { padding: 28px; position: relative; width: 100%; max-width: 400px; margin-left: auto; height: 324px; display: flex; flex-direction: column; }
+.hero-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-shrink: 0; }
+.hero-card-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--ink); color: #fdfbf6; display: flex; align-items: center; justify-content: center; font-family: var(--serif); font-weight: 700; font-size: 15px; flex-shrink: 0; }
+.hero-card-name { font-weight: 700; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
 .hero-card-meta { font-size: 12px; color: var(--text-muted); }
-.hero-card-quote { font-family: var(--serif); font-size: 19px; line-height: 1.4; margin-bottom: 22px; }
-.hero-card-footer { display: flex; justify-content: space-between; padding-top: 16px; border-top: 1px solid var(--border-soft); }
+.hero-card-quote {
+  font-family: var(--serif); font-size: 19px; line-height: 1.4; margin-bottom: 22px;
+  flex: 1 1 auto; overflow: hidden; width: 100%;
+}
+.typing-cursor {
+  display: inline-block; width: 2px; height: 1em; margin-left: 1px;
+  background: var(--accent-ink); vertical-align: text-bottom;
+  animation: caretBlink 0.9s step-end infinite;
+}
+@keyframes caretBlink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+.hero-card-footer { display: flex; justify-content: space-between; padding-top: 16px; border-top: 1px solid var(--border-soft); flex-shrink: 0; }
 .hero-card-footer-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); font-weight: 700; margin-bottom: 4px; }
 .hero-card-footer-value { font-size: 13.5px; font-weight: 600; }
 

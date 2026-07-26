@@ -23,7 +23,7 @@
 | AI/LLM | LangChain + OpenAI GPT-4o-mini |
 | Web Search | Tavily Search API |
 | Database | MongoDB Atlas |
-| Task Queue | Celery + Redis |
+| Scheduling | Celery + Redis (local dev) / external cron + `/api/cron/tick` (production) |
 | Email | Resend API |
 
 ## 🚀 Quick Start
@@ -57,12 +57,20 @@ npm install
 npm run dev
 ```
 
-### 3. Start Background Worker (for automated newsletters)
+### 3. Trigger automated newsletters
+
+Locally, run Celery Beat + worker as before:
 
 ```bash
 cd backend
 celery -A worker.celery_app worker --beat --loglevel=info
 ```
+
+In production, no Celery/Redis process needs to run continuously. An
+external free scheduler (e.g. [cron-job.org](https://cron-job.org)) hits
+`POST /api/cron/tick` every 5 minutes with an `X-Cron-Secret` header
+matching `CRON_SECRET` in `.env`. That endpoint runs the same curate/dispatch
+check in-process — see `app/routes/cron.py`.
 
 ### 🔑 Required API Keys
 
@@ -96,5 +104,6 @@ ScoutAI/
 ## 🌐 Deployment
 
 - **Frontend** → Vercel (set `VITE_API_URL` env var)
-- **Backend API** → Render Web Service
-- **Background Worker** → Render Background Worker
+- **Backend API** → Render free Web Service (sleeps when idle; the cron ping below wakes it)
+- **Scheduling** → external free cron (e.g. cron-job.org) → `POST /api/cron/tick` every 5 min, with header `X-Cron-Secret: <CRON_SECRET>`
+- No Redis or standalone worker needed in production

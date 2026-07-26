@@ -93,12 +93,17 @@ async def extract_single_topic(
     extraction_prompt = f"""Analyze this conversation and extract exactly ONE news topic the user confirmed.
 
 Respond with a JSON object of this exact shape:
-{{"topics": [{{"name": str, "keywords": [str], "category": str, "suggested_lifecycle": str}}]}}
+{{"topics": [{{"name": str, "keywords": [str], "category": str, "description": str, "suggested_lifecycle": str}}]}}
 
 Field rules:
 - name: A clear, concise topic name (e.g., "AI Product Launches", "Premier League Football")
 - keywords: 4-6 specific search keywords that would find relevant news articles
 - category: One of: technology, world_news, finance, sports, entertainment, science
+- description: A 1-sentence summary of what the user SPECIFICALLY wants from this topic — carry over
+  any nuance from the conversation (their angle, context, or goal — e.g. "as a CSE student looking
+  for practical tools", "match results and player performance, not transfer rumors"), not just a
+  restatement of the topic name. This is used later to steer what gets searched and selected, so
+  keep whatever specifics the user gave beyond the bare keywords.
 - suggested_lifecycle: "perpetual" for ongoing interests, "ephemeral" for event-based topics
 
 CONVERSATION:

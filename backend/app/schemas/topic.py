@@ -8,6 +8,7 @@ class TopicCreateRequest(BaseModel):
     name: str
     keywords: list[str]
     category: str = "general"
+    description: str | None = None
     delivery_times: list[str] = ["08:00"]
     timezone: str = "Asia/Kolkata"
     lifecycle: str = "perpetual"
@@ -18,6 +19,7 @@ class TopicUpdateRequest(BaseModel):
     name: str | None = None
     keywords: list[str] | None = None
     category: str | None = None
+    description: str | None = None
     delivery_times: list[str] | None = None
     timezone: str | None = None
     lifecycle: str | None = None
@@ -29,6 +31,7 @@ class TopicResponse(BaseModel):
     name: str
     keywords: list[str]
     category: str
+    description: str | None = None
     delivery_times: list[str]
     timezone: str
     lifecycle: str

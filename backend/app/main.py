@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.database import init_indexes
-from app.routes import auth, chat, topics, newsletters, slots
+from app.routes import auth, chat, topics, newsletters, slots, cron
 
 settings = get_settings()
 
@@ -47,6 +47,7 @@ app.include_router(chat.router)
 app.include_router(topics.router)
 app.include_router(newsletters.router)
 app.include_router(slots.router)
+app.include_router(cron.router)
 
 
 @app.get("/")

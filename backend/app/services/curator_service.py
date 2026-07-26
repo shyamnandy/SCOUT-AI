@@ -9,10 +9,18 @@ from html import escape
 from langchain_community.document_loaders import WebBaseLoader
 from app.config import get_settings, get_llm
 from app.schemas.newsletter import ArticleSummary, NewsletterOutput
+from app.services.search_service import dedupe_by_event
 from jinja2 import Environment
 from pathlib import Path
 
 settings = get_settings()
+
+# How many articles ship in one topic's section. Fewer than the shortlist that
+# feeds it, so same-story duplicates can be dropped without leaving gaps.
+FINAL_ARTICLE_COUNT = 5
+# Below this relevance an article is dropped outright rather than counted
+# toward the target — a thin section beats a padded one.
+RELEVANCE_FLOOR = 0.4
 
 TEMPLATE_DIR = Path(__file__).parent.parent.parent / "templates"
 LOGO_PATH = TEMPLATE_DIR / "assets" / "logo_email.png"
@@ -83,13 +91,18 @@ async def filter_and_summarize(
     scraped_articles: list[dict],
     topic_name: str,
     keywords: list[str],
+    description: str | None = None,
     groq_api_key: str | None = None,
 ) -> list[ArticleSummary]:
     """
-    AI-powered noise filtering and summarization:
-    1. Score each article for relevance
-    2. Discard irrelevant/low-quality articles
-    3. Summarize the best ones into concise blurbs
+    Final curation pass over the scraped shortlist:
+    1. Re-label which event each article covers, now that full text is available
+    2. Score relevance and how important the story is
+    3. Keep one article per event and summarize the top FINAL_ARTICLE_COUNT
+
+    The event re-labeling matters here even though search already did it:
+    search only saw short snippets, which routinely hide that two articles are
+    the same story. Full text exposes those overlaps.
     """
     llm = get_llm(temperature=0.3, groq_api_key=groq_api_key)
 
@@ -104,24 +117,30 @@ URL: {article['url']}
 Content: {content}
 """
 
-    prompt = f"""You are an expert news curator. Analyze these articles for the topic "{topic_name}" (keywords: {', '.join(keywords)}).
+    focus_line = f'\nUSER\'S SPECIFIC FOCUS: {description}' if description else ""
+
+    prompt = f"""You are an expert news curator. Analyze these articles for the topic "{topic_name}" (keywords: {', '.join(keywords)}).{focus_line}
 
 {articles_text}
 
-For each article, do the following:
-1. SCORE its relevance to the topic (0.0 to 1.0)
-2. DISCARD articles scoring below 0.5 (irrelevant, clickbait, or off-topic)
-3. SUMMARIZE each remaining article in exactly 2-3 sentences — capture the key facts, not fluff
-4. Extract the source name from the URL domain
-
-Return a JSON array of objects with EXACTLY these fields:
+For EVERY article above, return one object with EXACTLY these fields:
 - "title": the article title
-- "summary": your 2-3 sentence summary
+- "summary": a 2-3 sentence summary capturing the key facts, not fluff
 - "source_url": the article URL
-- "source_name": the publisher name
-- "relevance_score": your relevance score (0.0 to 1.0)
+- "source_name": the publisher name from the URL domain
+- "relevance_score": 0.0-1.0, how directly it matches the topic{" and the user's stated focus above" if description else ""}
+- "importance": 0.0-1.0, how significant this development is for someone following this topic —
+  major decisions, outcomes, and announcements rank high; routine follow-ups and commentary rank low
+- "event_key": a short lowercase slug naming the SPECIFIC underlying news event reported
+  (e.g. "education-minister-resignation", "cjp-verdict-appeal"). Articles about the SAME event MUST get
+  the SAME slug even if they are from different outlets, are framed differently, or add small new details.
+  Reaction pieces, follow-ups, and opinion columns about an event share that event's slug.
 
-Sort by relevance_score descending. Return only the top 6 articles.
+Rules:
+- Include an entry for every article. Do NOT remove duplicates yourself — label them accurately and let
+  the slugs repeat. Grouping happens after your response.
+- Set relevance_score below 0.4 for anything off-topic, clickbait, or content-free; those get dropped.
+
 Return ONLY the JSON array, no other text."""
 
     response = await llm.ainvoke(prompt)
@@ -132,11 +151,13 @@ Return ONLY the JSON array, no other text."""
             text = text.split("```")[1]
             if text.startswith("json"):
                 text = text[4:]
-        articles_data = json.loads(text)
-        return [ArticleSummary(**a) for a in articles_data]
-    except (json.JSONDecodeError, Exception) as e:
+        scored = json.loads(text)
+        if not isinstance(scored, list) or not scored:
+            raise ValueError("empty or non-list curation payload")
+    except (json.JSONDecodeError, ValueError, Exception) as e:
         print(f"Summarization parse error: {e}")
-        # Fallback: return basic summaries
+        # Fallback: basic summaries straight off the shortlist, which search
+        # already reduced to one article per event.
         return [
             ArticleSummary(
                 title=a["title"],
@@ -145,8 +166,42 @@ Return ONLY the JSON array, no other text."""
                 source_name=a.get("source_name", "Unknown"),
                 relevance_score=0.7,
             )
-            for a in scraped_articles[:6]
+            for a in scraped_articles[:FINAL_ARTICLE_COUNT]
         ]
+
+    relevant = [a for a in scored if _read_score(a, "relevance_score") >= RELEVANCE_FLOOR]
+    # One article per event, most important first. Distinctness is enforced
+    # here in code, so a thin news day yields fewer articles rather than the
+    # same story told several ways.
+    distinct = dedupe_by_event(relevant, "importance")
+    selected = distinct[:FINAL_ARTICLE_COUNT]
+
+    print(
+        f"[curate] '{topic_name}': {len(scored)} scored -> {len(relevant)} above floor -> "
+        f"{len(distinct)} distinct events -> {len(selected)} delivered"
+    )
+
+    articles = []
+    for a in selected:
+        try:
+            articles.append(ArticleSummary(**{
+                "title": a["title"],
+                "summary": a["summary"],
+                "source_url": a.get("source_url", ""),
+                "source_name": a.get("source_name", "Unknown"),
+                "relevance_score": _read_score(a, "relevance_score"),
+            }))
+        except KeyError as e:
+            print(f"Skipping malformed curated article, missing {e}")
+    return articles
+
+
+def _read_score(item: dict, field: str) -> float:
+    """Read a numeric score off an LLM-produced dict, tolerating junk."""
+    try:
+        return float(item.get(field, 0.0) or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
 
 
 async def generate_newsletter(

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Navbar from './components/Navbar';
@@ -17,6 +18,18 @@ function ProtectedRoute({ children }) {
   return user ? children : <Navigate to="/login" />;
 }
 
+// The dock (and Navbar links) swap routes via client-side navigation, which
+// keeps the browser's scroll position from the previous page. Without this,
+// hopping onto /chat from a scrolled-down page lands you in the middle of
+// it instead of at the top. Reset on every route change.
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
+
 function AppRoutes() {
   const { user } = useAuth();
   const location = useLocation();
@@ -24,6 +37,7 @@ function AppRoutes() {
 
   return (
     <>
+      <ScrollToTop />
       <Navbar />
       <Routes>
         <Route path="/" element={<Landing />} />

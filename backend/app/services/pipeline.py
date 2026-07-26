@@ -28,13 +28,15 @@ async def curate_topic(topic: dict, user: dict) -> dict | None:
     """
     topic_name = topic["name"]
     keywords = topic["keywords"]
+    description = topic.get("description")
+    category = topic.get("category")
     user_name = user["name"]
     # A user's own key, if they've set one — falls back to the shared
     # app-level key everywhere it's threaded through below.
     groq_api_key = decrypt(user.get("groq_api_key"))
 
     print(f"[curate] Searching: {topic_name}")
-    sources = await search_for_topic(keywords, topic_name, groq_api_key)
+    sources = await search_for_topic(keywords, topic_name, description, category, groq_api_key)
     if not sources:
         print(f"[curate] No sources found for '{topic_name}'")
         return None
@@ -43,7 +45,7 @@ async def curate_topic(topic: dict, user: dict) -> dict | None:
     scraped = await scrape_sources(sources)
 
     print(f"[curate] Filtering and summarizing '{topic_name}'")
-    articles = await filter_and_summarize(scraped, topic_name, keywords, groq_api_key)
+    articles = await filter_and_summarize(scraped, topic_name, keywords, description, groq_api_key)
     if not articles:
         print(f"[curate] Nothing relevant survived filtering for '{topic_name}'")
         return None

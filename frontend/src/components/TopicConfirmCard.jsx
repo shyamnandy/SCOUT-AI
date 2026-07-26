@@ -8,6 +8,7 @@ export default function TopicConfirmCard({ topic, onAdd, onDiscard, saving }) {
   const [keywordInput, setKeywordInput] = useState('');
   const [keywords, setKeywords] = useState([]);
   const [category, setCategory] = useState('technology');
+  const [description, setDescription] = useState('');
   const [lifecycle, setLifecycle] = useState('perpetual');
   const [expirationDate, setExpirationDate] = useState('');
 
@@ -16,6 +17,7 @@ export default function TopicConfirmCard({ topic, onAdd, onDiscard, saving }) {
     setName(topic.name || '');
     setKeywords(topic.keywords || []);
     setCategory(topic.category || 'technology');
+    setDescription(topic.description || '');
     setLifecycle(topic.suggested_lifecycle || 'perpetual');
     setExpirationDate('');
   }, [topic]);
@@ -43,6 +45,7 @@ export default function TopicConfirmCard({ topic, onAdd, onDiscard, saving }) {
       name,
       keywords,
       category,
+      description: description.trim() || null,
       lifecycle,
       // Unscheduled — the user drags it into a time slot on the dashboard.
       delivery_times: [],
@@ -86,6 +89,19 @@ export default function TopicConfirmCard({ topic, onAdd, onDiscard, saving }) {
             <option key={c} value={c}>{c.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase())}</option>
           ))}
         </select>
+      </div>
+
+      <div className="input-group" style={{ marginBottom: 16 }}>
+        <label>Focus (optional)</label>
+        <input
+          className="input-field"
+          placeholder="e.g. prioritize match results, skip transfer rumors"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
+        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+          Tells the curator what you actually care about within this topic.
+        </span>
       </div>
 
       <div className="input-group" style={{ marginBottom: 16 }}>

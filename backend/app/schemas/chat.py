@@ -11,6 +11,7 @@ class ExtractedTopic(BaseModel):
     name: str
     keywords: list[str]
     category: str
+    description: str | None = None
     suggested_lifecycle: str = "perpetual"
     expiration_date: str | None = None
 
