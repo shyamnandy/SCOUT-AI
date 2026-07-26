@@ -6,7 +6,6 @@ import re
 from langchain_tavily import TavilySearch
 from langchain_tavily.tavily_search import TavilySearchAPIWrapper
 from app.config import get_settings, get_llm
-from pydantic import BaseModel, Field
 
 settings = get_settings()
 
@@ -27,13 +26,6 @@ CATEGORY_OUTLET_HINTS = {
     "science": "Nature, Scientific American, Ars Technica",
 }
 DEFAULT_OUTLET_HINT = "Reuters, AP, BBC"
-
-
-class SourceSelection(BaseModel):
-    """Structured output for shortlisting distinct-event sources."""
-    sources: list[dict] = Field(
-        description="Shortlisted source articles with title, url, content, source_name, and event_key"
-    )
 
 
 def get_search_tool(max_results: int = 12) -> TavilySearch:

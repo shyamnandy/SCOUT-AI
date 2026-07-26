@@ -1,4 +1,4 @@
-"""Conversational onboarding service using LangChain + Groq (or OpenAI fallback)."""
+"""Conversational onboarding service using LangChain + Groq."""
 
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from app.config import get_settings, get_llm
@@ -35,7 +35,7 @@ class TopicExtraction(BaseModel):
 
 
 def get_chat_llm(groq_api_key: str | None = None):
-    """Get the configured LLM instance (Groq if GROQ_API_KEY is set, else OpenAI).
+    """Get the configured Groq LLM instance.
 
     `groq_api_key` lets a caller use a user's own Groq key; falls back to the
     shared app-level key when omitted.

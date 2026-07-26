@@ -27,4 +27,4 @@ Thumbs.db
 
 # Logs
 *.log
-celerybeat-schedule
+celerybeat-schedule*

@@ -12,9 +12,6 @@ class Settings(BaseSettings):
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
 
-    # OpenAI
-    OPENAI_API_KEY: str = ""
-
     # Groq Cloud
     GROQ_API_KEY: str = ""
 
@@ -48,24 +45,22 @@ def get_settings() -> Settings:
 
 
 def get_llm(temperature: float = 0.7, model: str = None, groq_api_key: str | None = None):
-    """Helper to return configured ChatOpenAI instance supporting OpenAI and Groq.
+    """Helper to return a ChatOpenAI instance pointed at Groq's OpenAI-compatible endpoint.
 
+    Groq is the sole LLM provider: `langchain_openai.ChatOpenAI` is used as a
+    generic OpenAI-protocol client, not because OpenAI itself is called.
     `groq_api_key` lets a caller use a user's own Groq key instead of the
-    shared app-level one; falls back to GROQ_API_KEY/OPENAI_API_KEY when omitted.
+    shared app-level one; falls back to GROQ_API_KEY when omitted.
     """
     from langchain_openai import ChatOpenAI
     settings = get_settings()
     key = groq_api_key or settings.GROQ_API_KEY
-    if key:
-        return ChatOpenAI(
-            model=model or "llama-3.3-70b-versatile",
-            api_key=key,
-            base_url="https://api.groq.com/openai/v1",
-            temperature=temperature,
-        )
+    if not key:
+        raise RuntimeError("No Groq API key configured (set GROQ_API_KEY or a per-user key)")
     return ChatOpenAI(
-        model=model or "gpt-4o-mini",
-        api_key=settings.OPENAI_API_KEY,
+        model=model or "llama-3.3-70b-versatile",
+        api_key=key,
+        base_url="https://api.groq.com/openai/v1",
         temperature=temperature,
     )
 

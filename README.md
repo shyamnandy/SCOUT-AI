@@ -20,7 +20,7 @@
 | Frontend | React 18 + Vite |
 | Styling | Vanilla CSS (dark glassmorphism) |
 | Backend API | FastAPI (Python) |
-| AI/LLM | LangChain + OpenAI GPT-4o-mini |
+| AI/LLM | LangChain + Groq (Llama 3.3 70B) |
 | Web Search | Tavily Search API |
 | Database | MongoDB Atlas |
 | Scheduling | Celery + Redis (local dev) / external cron + `/api/cron/tick` (production) |
@@ -76,7 +76,7 @@ check in-process — see `app/routes/cron.py`.
 
 | Key | Get it from |
 |-----|------------|
-| `OPENAI_API_KEY` | [platform.openai.com](https://platform.openai.com) |
+| `GROQ_API_KEY` | [console.groq.com](https://console.groq.com/keys) (free) |
 | `TAVILY_API_KEY` | [tavily.com](https://tavily.com) (1000 free searches/month) |
 | `RESEND_API_KEY` | [resend.com](https://resend.com) (100 free emails/day) |
 | `MONGO_URI` | [mongodb.com/atlas](https://mongodb.com/atlas) (free M0 cluster) |
