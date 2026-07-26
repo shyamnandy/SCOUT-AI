@@ -12,20 +12,6 @@ from app.config import get_settings
 router = APIRouter(prefix="/api/cron", tags=["Cron"])
 
 
-@router.get("/debug")
-def debug_secret(x_cron_secret: str = Header(default="")):
-    """Temporary: confirms what the running process actually loaded, without
-    exposing either secret's real value. Remove once /tick auth is verified."""
-    settings = get_settings()
-    configured = settings.CRON_SECRET
-    return {
-        "configured_secret_set": bool(configured),
-        "configured_secret_length": len(configured),
-        "received_header_length": len(x_cron_secret),
-        "match": bool(configured) and x_cron_secret == configured,
-    }
-
-
 @router.post("/tick")
 def run_tick(x_cron_secret: str = Header(default="")):
     settings = get_settings()
