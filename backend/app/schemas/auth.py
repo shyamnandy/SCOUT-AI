@@ -27,7 +27,16 @@ class UserResponse(BaseModel):
     is_onboarded: bool
     created_at: datetime | None = None
     batch_delivery: bool = True
+    # Whether the user has their own key on file — never the key itself.
+    has_resend_key: bool = False
+    has_groq_key: bool = False
 
 
 class PreferencesRequest(BaseModel):
     batch_delivery: bool
+
+
+class ApiKeysRequest(BaseModel):
+    # Omit a field to leave it unchanged; send "" to clear a previously-set key.
+    resend_api_key: str | None = None
+    groq_api_key: str | None = None

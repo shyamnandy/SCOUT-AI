@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import ChatOnboarding from '../components/ChatOnboarding';
 import TopicConfirmCard from '../components/TopicConfirmCard';
 import Icon from '../components/Icon';
-import { createTopic, finishOnboarding, getErrorMessage } from '../services/api';
+import { createTopic, getErrorMessage } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 export default function Onboarding() {
@@ -11,12 +11,15 @@ export default function Onboarding() {
   const [pendingTopic, setPendingTopic] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [leaving, setLeaving] = useState(false);
   const navigate = useNavigate();
   const { setUser, user } = useAuth();
 
   // Each confirmed topic is created right away, so it shows up on the
   // dashboard immediately instead of waiting for a batch "finish" step.
+  // The backend flips is_onboarded the moment a topic exists, so there's
+  // no separate "complete onboarding" call — mirror that here so a user
+  // who navigates away any other way (not just this button) is never
+  // left stuck being redirected back to onboarding.
   const handleAddTopic = async (payload) => {
     setSaving(true);
     setError('');
@@ -24,25 +27,11 @@ export default function Onboarding() {
       const res = await createTopic(payload);
       setAddedTopics((prev) => [...prev, res.data]);
       setPendingTopic(null);
+      if (!user.is_onboarded) setUser({ ...user, is_onboarded: true });
     } catch (err) {
       setError(getErrorMessage(err, 'Failed to add topic. Please try again.'));
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleDone = async () => {
-    setLeaving(true);
-    try {
-      if (!user?.is_onboarded) {
-        // Topics already exist; this just flips the onboarding flag.
-        await finishOnboarding({ topics: [] });
-        setUser({ ...user, is_onboarded: true });
-      }
-      navigate('/dashboard');
-    } catch (err) {
-      setError(getErrorMessage(err, 'Something went wrong. Please try again.'));
-      setLeaving(false);
     }
   };
 
@@ -71,7 +60,7 @@ export default function Onboarding() {
       <div className="onboarding-grid">
         <div className="onboarding-panel">
           <h2><Icon name="chat" size={18} /> Chat with AI</h2>
-          <ChatOnboarding onTopicReady={setPendingTopic} />
+          <ChatOnboarding onTopicReady={setPendingTopic} locked={!user?.has_groq_key} />
         </div>
 
         <div className="onboarding-panel">
@@ -88,10 +77,10 @@ export default function Onboarding() {
       <div className="onboarding-footer">
         <button
           className="btn btn-primary btn-lg"
-          onClick={handleDone}
-          disabled={leaving || addedTopics.length === 0}
+          onClick={() => navigate('/dashboard')}
+          disabled={addedTopics.length === 0}
         >
-          {leaving ? 'Finishing...' : `Go to Dashboard${addedTopics.length ? ` (${addedTopics.length} added)` : ''}`}
+          {`Go to Dashboard${addedTopics.length ? ` (${addedTopics.length} added)` : ''}`}
           <Icon name="arrowRight" size={16} />
         </button>
       </div>

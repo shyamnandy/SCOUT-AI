@@ -33,7 +33,9 @@ def get_search_tool():
     )
 
 
-async def search_for_topic(keywords: list[str], topic_name: str) -> list[dict]:
+async def search_for_topic(
+    keywords: list[str], topic_name: str, groq_api_key: str | None = None
+) -> list[dict]:
     """
     Search the internet for a topic using Tavily, then use AI to select
     the 6 best legitimate sources.
@@ -41,6 +43,7 @@ async def search_for_topic(keywords: list[str], topic_name: str) -> list[dict]:
     Args:
         keywords: List of search keywords for the topic
         topic_name: Human-readable topic name for context
+        groq_api_key: A user's own Groq key, if they've supplied one.
 
     Returns:
         List of 6 best source articles with title, url, content, source_name
@@ -80,7 +83,7 @@ async def search_for_topic(keywords: list[str], topic_name: str) -> list[dict]:
 
     # Use AI to select the 6 best, most legitimate sources
     if articles:
-        return await select_best_sources(articles, topic_name, keywords)
+        return await select_best_sources(articles, topic_name, keywords, groq_api_key)
 
     print(f"Tavily returned no usable results for '{topic_name}'")
     return []
@@ -105,12 +108,13 @@ async def select_best_sources(
     articles: list[dict],
     topic_name: str,
     keywords: list[str],
+    groq_api_key: str | None = None,
 ) -> list[dict]:
     """
     Use AI to select the 6 most legitimate and relevant sources
     from the raw search results.
     """
-    llm = get_llm(temperature=0.2)
+    llm = get_llm(temperature=0.2, groq_api_key=groq_api_key)
 
     # Format articles for the LLM
     articles_text = ""

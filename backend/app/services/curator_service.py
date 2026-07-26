@@ -83,6 +83,7 @@ async def filter_and_summarize(
     scraped_articles: list[dict],
     topic_name: str,
     keywords: list[str],
+    groq_api_key: str | None = None,
 ) -> list[ArticleSummary]:
     """
     AI-powered noise filtering and summarization:
@@ -90,7 +91,7 @@ async def filter_and_summarize(
     2. Discard irrelevant/low-quality articles
     3. Summarize the best ones into concise blurbs
     """
-    llm = get_llm(temperature=0.3)
+    llm = get_llm(temperature=0.3, groq_api_key=groq_api_key)
 
     articles_text = ""
     for i, article in enumerate(scraped_articles):
@@ -152,12 +153,13 @@ async def generate_newsletter(
     articles: list[ArticleSummary],
     topic_name: str,
     user_name: str,
+    groq_api_key: str | None = None,
 ) -> str:
     """
     Generate a beautiful HTML newsletter from the curated articles.
     Uses a Jinja2 template for the email layout.
     """
-    llm = get_llm(temperature=0.5)
+    llm = get_llm(temperature=0.5, groq_api_key=groq_api_key)
 
     # Generate a personalized greeting and closing
     articles_summary = "\n".join(

@@ -56,6 +56,21 @@ def migrate(dry_run: bool = False) -> None:
         if not dry_run:
             db.users.update_one({"_id": user["_id"]}, {"$set": {"delivery_slots": slots}})
 
+    # --- users: stuck onboarding — has topics but flag never flipped ------
+    # (older code only set is_onboarded via the "Go to Dashboard" button;
+    # leaving the flow any other way left users with real topics stuck
+    # being redirected back to onboarding forever)
+    unfinished = list(db.users.find({"is_onboarded": {"$ne": True}}, {"_id": 1, "email": 1}))
+    fixed = 0
+    for user in unfinished:
+        if db.topics.count_documents({"user_id": str(user["_id"])}) > 0:
+            print(f"{tag} mark is_onboarded=True for {user['email']} (has topics, flag was stuck)")
+            fixed += 1
+            if not dry_run:
+                db.users.update_one({"_id": user["_id"]}, {"$set": {"is_onboarded": True}})
+    if not fixed:
+        print(f"{tag} fix stuck-onboarding users: none found")
+
     # --- topics: normalise missing delivery_times to [] -------------------
     q = {"delivery_times": {"$exists": False}}
     n = db.topics.count_documents(q)

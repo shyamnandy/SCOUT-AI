@@ -207,11 +207,16 @@ def dispatch_slot(self, user_id: str, slot: str, local_date: str):
     try:
         from app.services.curator_service import render_batch_newsletter
         from app.services.email_service import send_newsletter_email
+        from app.services.crypto_service import decrypt
 
         db = _get_sync_db()
         user = db.users.find_one({"_id": ObjectId(user_id)})
         if not user:
             return {"status": "skipped", "reason": "User not found"}
+
+        # A user's own Resend key, if set — lets them receive mail without
+        # the shared app-level key's sandbox recipient restriction.
+        resend_api_key = decrypt(user.get("resend_api_key"))
 
         # Self-heal: a topic due this slot with no draft yet (short lead time,
         # a missed curate window, worker downtime) gets curated right now
@@ -254,14 +259,14 @@ def dispatch_slot(self, user_id: str, slot: str, local_date: str):
                 slot_label=slot_label,
             )
             subject = f"Your ScoutAI Digest — {len(drafts)} updates ({slot_label})"
-            result = _run_async(send_newsletter_email(user["email"], subject, html))
+            result = _run_async(send_newsletter_email(user["email"], subject, html, resend_api_key))
             _finalize(db, drafts, result["status"], sent_at, batch_html=html)
             delivered = 1
         else:
             for draft in drafts:
                 subject = f"{draft['topic_name']} — Your ScoutAI Update"
                 result = _run_async(
-                    send_newsletter_email(user["email"], subject, draft["html_content"])
+                    send_newsletter_email(user["email"], subject, draft["html_content"], resend_api_key)
                 )
                 _finalize(db, [draft], result["status"], sent_at)
             delivered = len(drafts)

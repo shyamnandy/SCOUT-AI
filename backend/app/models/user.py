@@ -17,4 +17,8 @@ def create_user_doc(email: str, name: str, password_hash: str) -> dict:
         # When true, topics sharing a delivery slot go out as one combined
         # email instead of one email per topic.
         "batch_delivery": True,
+        # Optional BYO API keys (Fernet-encrypted, see crypto_service).
+        # None means "use the shared app-level key" for that service.
+        "resend_api_key": None,
+        "groq_api_key": None,
     }

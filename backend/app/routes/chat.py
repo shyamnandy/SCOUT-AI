@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from app.schemas.chat import ChatMessageRequest, ChatMessageResponse, ConfirmTopicResponse, FinishOnboardingRequest
 from app.services.chat_service import chat_onboarding, extract_single_topic
+from app.services.crypto_service import decrypt
 from app.database import chat_sessions_collection, topics_collection, users_collection
 from app.models.topic import create_topic_doc
 from app.utils import get_current_user
@@ -38,8 +39,19 @@ async def send_onboarding_message(
 
     messages_history = session.get("messages", [])
 
-    # Get AI response
-    result = await chat_onboarding(messages_history, data.message)
+    # Get AI response — the user's own Groq key if they've set one. A bad
+    # key (typo, revoked, wrong type) surfaces as a provider auth error deep
+    # in the LLM call; turn that into a clear pointer back to Profile rather
+    # than a raw 500.
+    try:
+        result = await chat_onboarding(messages_history, data.message, decrypt(user.get("groq_api_key")))
+    except Exception as exc:
+        if user.get("groq_api_key"):
+            raise HTTPException(
+                status_code=502,
+                detail="Your Groq API key was rejected. Double-check it in Profile — it may be invalid, revoked, or mistyped.",
+            ) from exc
+        raise
 
     # Update session with new messages
     new_messages = messages_history + [
@@ -69,7 +81,15 @@ async def confirm_topic(user: dict = Depends(get_current_user)):
     if not session or not session.get("messages"):
         raise HTTPException(status_code=400, detail="No active conversation to confirm")
 
-    topics = await extract_single_topic(session["messages"])
+    try:
+        topics = await extract_single_topic(session["messages"], decrypt(user.get("groq_api_key")))
+    except Exception as exc:
+        if user.get("groq_api_key"):
+            raise HTTPException(
+                status_code=502,
+                detail="Your Groq API key was rejected. Double-check it in Profile — it may be invalid, revoked, or mistyped.",
+            ) from exc
+        raise
     await chat_sessions_collection.delete_one({"_id": session["_id"]})
 
     return ConfirmTopicResponse(topic=topics[0] if topics else None)

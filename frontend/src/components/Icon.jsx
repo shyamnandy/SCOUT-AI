@@ -18,6 +18,9 @@ const PATHS = {
   infinity: <path d="M6.5 15a3.5 3.5 0 1 1 4.6-5.28c.32.28.6.6.9.94.3-.34.58-.66.9-.94A3.5 3.5 0 1 1 17.5 15c-1.9 0-3.2-1.36-4.1-2.34-.9.98-2.2 2.34-4.1 2.34" fill="none" />,
   inbox: <><polyline points="22 12 16 12 14 15 10 15 8 12 2 12" /><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" /></>,
   check: <polyline points="20 6 9 17 4 12" />,
+  key: <><circle cx="7.5" cy="15.5" r="5.5" /><path d="m21 2-9.6 9.6" /><path d="m15.5 7.5 3 3L22 7l-3-3" /></>,
+  lock: <><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></>,
+  alertCircle: <><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></>,
 };
 
 export default function Icon({ name, size = 18, strokeWidth = 1.75, className = '', style }) {

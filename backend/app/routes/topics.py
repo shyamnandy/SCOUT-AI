@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.schemas.topic import TopicCreateRequest, TopicUpdateRequest, TopicResponse
-from app.database import topics_collection
+from app.database import topics_collection, users_collection
 from app.models.topic import create_topic_doc
 from app.utils import get_current_user
 from bson import ObjectId
@@ -55,6 +55,17 @@ async def create_topic(
 
     result = await topics_collection.insert_one(topic_doc)
     topic_doc["_id"] = result.inserted_id
+
+    # Having a topic *is* what it means to be onboarded — flip the flag
+    # here rather than relying on the user reaching a specific button/page,
+    # so leaving the onboarding flow early (closed tab, browser back, a nav
+    # click) never leaves a user with topics stuck being redirected back.
+    if not user.get("is_onboarded"):
+        await users_collection.update_one(
+            {"_id": ObjectId(user["id"])},
+            {"$set": {"is_onboarded": True}},
+        )
+
     return _topic_to_response(topic_doc)
 
 

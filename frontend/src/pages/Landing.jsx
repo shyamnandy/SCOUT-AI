@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import Icon from '../components/Icon';
+import { useAuth } from '../context/AuthContext';
 
 const today = new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
@@ -13,6 +14,8 @@ const FEATURES = [
 ];
 
 export default function Landing() {
+  const { user } = useAuth();
+
   return (
     <>
       <section className="hero">
@@ -27,8 +30,14 @@ export default function Landing() {
               ScoutAI curates personalized newsletters from 6 trusted sources — delivered to your inbox on your schedule. AI-powered. Zero noise.
             </p>
             <div className="hero-cta">
-              <Link to="/register"><button className="btn btn-primary btn-lg">Start Free <Icon name="arrowRight" size={16} /></button></Link>
-              <Link to="/login"><button className="btn btn-secondary btn-lg">Sign In</button></Link>
+              {user ? (
+                <Link to="/dashboard"><button className="btn btn-primary btn-lg">Go to Dashboard <Icon name="arrowRight" size={16} /></button></Link>
+              ) : (
+                <>
+                  <Link to="/register"><button className="btn btn-primary btn-lg">Start Free <Icon name="arrowRight" size={16} /></button></Link>
+                  <Link to="/login"><button className="btn btn-secondary btn-lg">Sign In</button></Link>
+                </>
+              )}
             </div>
           </div>
 

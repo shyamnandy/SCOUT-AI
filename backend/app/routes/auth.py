@@ -2,9 +2,10 @@
 
 from fastapi import APIRouter, HTTPException, status, Depends
 from app.schemas.auth import (
-    RegisterRequest, LoginRequest, TokenResponse, UserResponse, PreferencesRequest,
+    RegisterRequest, LoginRequest, TokenResponse, UserResponse, PreferencesRequest, ApiKeysRequest,
 )
 from app.services.auth_service import hash_password, verify_password, create_access_token
+from app.services.crypto_service import encrypt
 from app.database import users_collection
 from app.models.user import create_user_doc
 from app.utils import get_current_user
@@ -61,6 +62,8 @@ async def get_me(user: dict = Depends(get_current_user)):
         is_onboarded=user.get("is_onboarded", False),
         created_at=user.get("created_at"),
         batch_delivery=user.get("batch_delivery", True),
+        has_resend_key=bool(user.get("resend_api_key")),
+        has_groq_key=bool(user.get("groq_api_key")),
     )
 
 
@@ -81,4 +84,35 @@ async def update_preferences(
         is_onboarded=user.get("is_onboarded", False),
         created_at=user.get("created_at"),
         batch_delivery=data.batch_delivery,
+        has_resend_key=bool(user.get("resend_api_key")),
+        has_groq_key=bool(user.get("groq_api_key")),
+    )
+
+
+@router.patch("/api-keys", response_model=UserResponse)
+async def update_api_keys(
+    data: ApiKeysRequest,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Save the caller's own Resend/Groq API keys, encrypted at rest.
+
+    Sending an empty string for a field clears it (falls back to the
+    shared app-level key); omitting a field leaves it untouched.
+    """
+    fields = data.model_dump(exclude_unset=True)
+    update = {key: encrypt(value) for key, value in fields.items()}
+    if update:
+        await users_collection.update_one({"_id": ObjectId(user["id"])}, {"$set": update})
+
+    fresh = await users_collection.find_one({"_id": ObjectId(user["id"])})
+    return UserResponse(
+        id=user["id"],
+        email=fresh["email"],
+        name=fresh["name"],
+        is_onboarded=fresh.get("is_onboarded", False),
+        created_at=fresh.get("created_at"),
+        batch_delivery=fresh.get("batch_delivery", True),
+        has_resend_key=bool(fresh.get("resend_api_key")),
+        has_groq_key=bool(fresh.get("groq_api_key")),
     )

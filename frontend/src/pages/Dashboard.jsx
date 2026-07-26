@@ -5,7 +5,7 @@ import TopicForm from '../components/TopicForm';
 import Icon from '../components/Icon';
 import {
   getTopics, createTopic, updateTopic, deleteTopic, toggleTopic,
-  getSlots, addSlot, deleteSlot, getErrorMessage,
+  getSlots, addSlot, updateSlot, deleteSlot, getErrorMessage,
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -25,6 +25,8 @@ export default function Dashboard() {
   const [dragOver, setDragOver] = useState(null);
   const [newSlotTime, setNewSlotTime] = useState('');
   const [addingSlot, setAddingSlot] = useState(false);
+  const [editingSlot, setEditingSlot] = useState(null);
+  const [editSlotValue, setEditSlotValue] = useState('');
   const [error, setError] = useState('');
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -130,6 +132,22 @@ export default function Dashboard() {
     }
   };
 
+  const handleEditSlot = async (time) => {
+    if (!editSlotValue || editSlotValue === time) {
+      setEditingSlot(null);
+      return;
+    }
+    try {
+      const res = await updateSlot(time, editSlotValue);
+      setSlots(res.data);
+      setEditingSlot(null);
+      fetchAll();
+    } catch (err) {
+      setError(getErrorMessage(err, 'Could not update that slot.'));
+      setEditingSlot(null);
+    }
+  };
+
   const handleDeleteSlot = async (time) => {
     const count = topics.filter((t) => (t.delivery_times || []).includes(time)).length;
     const msg = count
@@ -189,7 +207,36 @@ export default function Dashboard() {
       onDrop={(e) => handleDrop(e, time)}
     >
       <div className="board-row-head">
-        <span className="board-row-title"><Icon name={icon} size={15} /> {title}</span>
+        {!isPool && editingSlot === time ? (
+          <span className="board-row-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Icon name={icon} size={15} />
+            <input
+              type="time"
+              className="input-field input-field-sm"
+              value={editSlotValue}
+              autoFocus
+              onChange={(e) => setEditSlotValue(e.target.value)}
+              onBlur={() => handleEditSlot(time)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleEditSlot(time);
+                if (e.key === 'Escape') setEditingSlot(null);
+              }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </span>
+        ) : (
+          <span
+            className={`board-row-title ${!isPool ? 'is-editable' : ''}`}
+            title={!isPool ? 'Click to change the time' : undefined}
+            onClick={() => {
+              if (isPool) return;
+              setEditingSlot(time);
+              setEditSlotValue(time);
+            }}
+          >
+            <Icon name={icon} size={15} /> {title}
+          </span>
+        )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span className="board-row-count">{items.length}</span>
           {!isPool && (
@@ -229,72 +276,78 @@ export default function Dashboard() {
         <div className="glass-card stat-card"><div className="stat-value">{pooledCount}</div><div className="stat-label">In Pool</div></div>
       </div>
 
-      <div className="board-rows">
-        <div
-          className={`board-row is-pool ${dragOver === 'pool' ? 'drag-over' : ''}`}
-          onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOver('pool'); }}
-          onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(null); }}
-          onDrop={(e) => handleDrop(e, null)}
-        >
-          <div className="board-row-head">
-            <span className="board-row-title"><Icon name="inbox" size={15} /> Topic Pool</span>
-            <span className="board-row-count">{pooledCount}</span>
-          </div>
-
-          <div className="pool-partitions">
-            <div className="pool-partition">
-              <div className="pool-partition-head">
-                <span>Unscheduled</span>
-                <span className="board-row-count">{unscheduled.length}</span>
-              </div>
-              {unscheduled.length === 0
-                ? <p className="board-empty">No unscheduled topics.</p>
-                : renderCards(unscheduled, null, 'unsched', 'pool-list')}
-            </div>
-
-            <div className="pool-partition">
-              <div className="pool-partition-head">
-                <span>Paused</span>
-                <span className="board-row-count">{paused.length}</span>
-              </div>
-              {paused.length === 0
-                ? <p className="board-empty">Nothing paused.</p>
-                : renderCards(paused, null, 'paused', 'pool-list')}
-            </div>
-          </div>
-        </div>
-
-        {slots.map((time) =>
-          renderRow({
-            key: time,
-            time,
-            title: formatSlot(time),
-            icon: 'clock',
-            // Paused topics live in the pool, not in their slots.
-            items: topics.filter((t) => t.is_active && (t.delivery_times || []).includes(time)),
-            isPool: false,
-          })
-        )}
-
-        <div className="board-row board-row-add">
-          {addingSlot ? (
-            <div className="add-slot-form">
-              <input
-                type="time"
-                className="input-field"
-                value={newSlotTime}
-                onChange={(e) => setNewSlotTime(e.target.value)}
-                autoFocus
-              />
-              <button className="btn btn-primary btn-sm" onClick={handleAddSlot} disabled={!newSlotTime}>Add Slot</button>
-              <button className="btn btn-secondary btn-sm" onClick={() => { setAddingSlot(false); setNewSlotTime(''); }}>Cancel</button>
-            </div>
-          ) : (
-            <button className="add-slot-btn" onClick={() => setAddingSlot(true)}>
-              <Icon name="plus" size={16} /> <span>New Time Slot</span>
-            </button>
+      <div className="board-layout">
+        <div className="board-rows">
+          {slots.map((time) =>
+            renderRow({
+              key: time,
+              time,
+              title: formatSlot(time),
+              icon: 'clock',
+              // Paused topics live in the pool, not in their slots.
+              items: topics.filter((t) => t.is_active && (t.delivery_times || []).includes(time)),
+              isPool: false,
+            })
           )}
+
+          <div className="board-row board-row-add">
+            {addingSlot ? (
+              <div className="add-slot-form">
+                <input
+                  type="time"
+                  className="input-field"
+                  value={newSlotTime}
+                  onChange={(e) => setNewSlotTime(e.target.value)}
+                  autoFocus
+                />
+                <button className="btn btn-primary btn-sm" onClick={handleAddSlot} disabled={!newSlotTime}>Add Slot</button>
+                <button className="btn btn-secondary btn-sm" onClick={() => { setAddingSlot(false); setNewSlotTime(''); }}>Cancel</button>
+              </div>
+            ) : (
+              <button className="add-slot-btn" onClick={() => setAddingSlot(true)}>
+                <Icon name="plus" size={16} /> <span>New Time Slot</span>
+              </button>
+            )}
+          </div>
         </div>
+
+        <aside className="board-pool">
+          <div
+            className={`board-row is-pool ${dragOver === 'pool' ? 'drag-over' : ''}`}
+            onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOver('pool'); }}
+            onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(null); }}
+            onDrop={(e) => handleDrop(e, null)}
+          >
+            <div className="board-row-head">
+              <span className="board-row-title"><Icon name="inbox" size={15} /> Topic Pool</span>
+              <span className="board-row-count">{pooledCount}</span>
+            </div>
+
+            <div className="pool-scroll">
+              <div className="pool-partitions">
+                <div className="pool-partition">
+                  <div className="pool-partition-head">
+                    <span>Unscheduled</span>
+                    <span className="board-row-count">{unscheduled.length}</span>
+                  </div>
+                  {unscheduled.length === 0
+                    ? <p className="board-empty">No unscheduled topics.</p>
+                    : renderCards(unscheduled, null, 'unsched', 'pool-list')}
+                </div>
+
+                <div className="pool-partition">
+                  <div className="pool-partition-head">
+                    <span>Paused</span>
+                    <span className="board-row-count">{paused.length}</span>
+                  </div>
+                  {paused.length === 0
+                    ? <p className="board-empty">Nothing paused.</p>
+                    : renderCards(paused, null, 'paused', 'pool-list')}
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
       </div>
 
       {topics.length === 0 && (

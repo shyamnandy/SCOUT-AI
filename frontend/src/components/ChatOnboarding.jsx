@@ -1,17 +1,26 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ChatMessage from './ChatMessage';
 import Icon from './Icon';
 import { sendChatMessage, confirmChatTopic, resetChatSession, getErrorMessage } from '../services/api';
 
 const GREETING = { role: 'assistant', content: "Hey there — I'm your ScoutAI assistant. Tell me what topic or area you want to stay updated on: a technology, a sports league, a financial market, a world event..." };
+const LOCKED_TOAST = { message: "You haven't set your Groq API key yet — set it, takes about a minute." };
 
-export default function ChatOnboarding({ onTopicReady }) {
+export default function ChatOnboarding({ onTopicReady, locked = false }) {
   const [messages, setMessages] = useState([GREETING]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
   const messagesEndRef = useRef(null);
+  const navigate = useNavigate();
+
+  const redirectToSetKey = (e) => {
+    e.preventDefault();
+    e.target.blur?.();
+    navigate('/profile', { state: { toast: LOCKED_TOAST } });
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -85,18 +94,31 @@ export default function ChatOnboarding({ onTopicReady }) {
         </div>
       )}
 
-      <div className="chat-input-bar">
+      {locked && (
+        <div className="chat-lock-banner" onClick={redirectToSetKey}>
+          <Icon name="lock" size={13} /> Set your Groq API key to start chatting
+        </div>
+      )}
+
+      <div className={`chat-input-bar ${locked ? 'locked' : ''}`}>
         <input
           type="text"
           className="input-field"
-          placeholder="Tell me what interests you..."
+          placeholder={locked ? 'Set your API key to start chatting...' : 'Tell me what interests you...'}
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => !locked && setInput(e.target.value)}
           onKeyDown={handleKeyDown}
+          onFocus={locked ? redirectToSetKey : undefined}
+          onClick={locked ? redirectToSetKey : undefined}
+          readOnly={locked}
           disabled={loading || confirming}
         />
-        <button className="btn btn-primary btn-icon" onClick={handleSend} disabled={loading || confirming || !input.trim()}>
-          <Icon name="send" size={16} />
+        <button
+          className="btn btn-primary btn-icon"
+          onClick={locked ? redirectToSetKey : handleSend}
+          disabled={!locked && (loading || confirming || !input.trim())}
+        >
+          <Icon name={locked ? 'lock' : 'send'} size={16} />
         </button>
       </div>
     </div>

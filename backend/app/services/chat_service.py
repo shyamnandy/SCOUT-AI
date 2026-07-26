@@ -34,17 +34,23 @@ class TopicExtraction(BaseModel):
     )
 
 
-def get_chat_llm():
-    """Get the configured LLM instance (Groq if GROQ_API_KEY is set, else OpenAI)."""
-    return get_llm(temperature=0.7)
+def get_chat_llm(groq_api_key: str | None = None):
+    """Get the configured LLM instance (Groq if GROQ_API_KEY is set, else OpenAI).
+
+    `groq_api_key` lets a caller use a user's own Groq key; falls back to the
+    shared app-level key when omitted.
+    """
+    return get_llm(temperature=0.7, groq_api_key=groq_api_key)
 
 
-async def chat_onboarding(messages_history: list[dict], user_message: str) -> dict:
+async def chat_onboarding(
+    messages_history: list[dict], user_message: str, groq_api_key: str | None = None
+) -> dict:
     """
     Process a user message in the onboarding conversation.
     Returns the AI reply and any extracted topic when confirmed.
     """
-    llm = get_chat_llm()
+    llm = get_chat_llm(groq_api_key)
 
     lc_messages = [SystemMessage(content=ONBOARDING_SYSTEM_PROMPT)]
 
@@ -69,11 +75,13 @@ async def chat_onboarding(messages_history: list[dict], user_message: str) -> di
     }
 
 
-async def extract_single_topic(messages: list[dict]) -> list[ExtractedTopic]:
+async def extract_single_topic(
+    messages: list[dict], groq_api_key: str | None = None
+) -> list[ExtractedTopic]:
     """
     Use structured output to extract the single confirmed topic from the conversation.
     """
-    llm = get_chat_llm()
+    llm = get_chat_llm(groq_api_key)
     # Groq's llama models reject the `json_schema` response format that
     # with_structured_output uses by default, so pin it to JSON mode.
     structured_llm = llm.with_structured_output(TopicExtraction, method="json_mode")

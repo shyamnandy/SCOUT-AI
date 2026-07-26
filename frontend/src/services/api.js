@@ -31,6 +31,7 @@ export const registerUser = (data) => api.post('/api/auth/register', data);
 export const loginUser = (data) => api.post('/api/auth/login', data);
 export const getMe = () => api.get('/api/auth/me');
 export const updatePreferences = (data) => api.patch('/api/auth/preferences', data);
+export const updateApiKeys = (data) => api.patch('/api/auth/api-keys', data);
 
 // Chat
 export const sendChatMessage = (message) => api.post('/api/chat/onboarding', { message });
@@ -48,6 +49,7 @@ export const toggleTopic = (id) => api.patch(`/api/topics/${id}/toggle`);
 // Delivery slots
 export const getSlots = () => api.get('/api/slots');
 export const addSlot = (time) => api.post('/api/slots', { time });
+export const updateSlot = (time, newTime) => api.put(`/api/slots/${time}`, { time: newTime });
 export const deleteSlot = (time) => api.delete(`/api/slots/${time}`);
 
 // Newsletters

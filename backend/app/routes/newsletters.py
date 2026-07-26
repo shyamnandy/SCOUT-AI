@@ -113,6 +113,7 @@ async def _run_pipeline_for_topic(topic_id: str, user_id: str):
     """
     from app.services.pipeline import curate_topic, build_draft_doc
     from app.services.email_service import send_newsletter_email
+    from app.services.crypto_service import decrypt
     from app.database import users_collection
     from datetime import datetime, timezone
 
@@ -139,6 +140,7 @@ async def _run_pipeline_for_topic(topic_id: str, user_id: str):
             to_email=user["email"],
             subject=f"{payload['topic_name']} — Your ScoutAI Update",
             html_content=payload["html_content"],
+            api_key=decrypt(user.get("resend_api_key")),
         )
 
         sent_at = datetime.now(timezone.utc)

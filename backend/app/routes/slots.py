@@ -63,6 +63,37 @@ async def add_slot(data: SlotRequest, user: dict = Depends(get_current_user)):
     return slots
 
 
+@router.put("/{slot_time}", response_model=list[str])
+async def update_slot(slot_time: str, data: SlotRequest, user: dict = Depends(get_current_user)):
+    """Rename a slot's time, carrying over every topic scheduled at the old time."""
+    if not TIME_RE.match(data.time):
+        raise HTTPException(status_code=400, detail="Time must be in HH:MM format")
+
+    slots = await _get_slots(user["id"])
+    if slot_time not in slots:
+        raise HTTPException(status_code=404, detail="Slot not found")
+    if data.time == slot_time:
+        return slots
+    if data.time in slots:
+        raise HTTPException(status_code=400, detail="That time slot already exists")
+
+    slots = sorted([s for s in slots if s != slot_time] + [data.time])
+    await users_collection.update_one(
+        {"_id": ObjectId(user["id"])},
+        {"$set": {"delivery_slots": slots}},
+    )
+    # Topics scheduled at the old time move to the new time.
+    await topics_collection.update_many(
+        {"user_id": user["id"], "delivery_times": slot_time},
+        {"$addToSet": {"delivery_times": data.time}},
+    )
+    await topics_collection.update_many(
+        {"user_id": user["id"]},
+        {"$pull": {"delivery_times": slot_time}},
+    )
+    return slots
+
+
 @router.delete("/{slot_time}", response_model=list[str])
 async def delete_slot(slot_time: str, user: dict = Depends(get_current_user)):
     """Delete a slot and unschedule it from every topic that used it."""
