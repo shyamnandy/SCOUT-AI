@@ -291,6 +291,20 @@ select.input-field { cursor: pointer; appearance: none;
 .board-row.is-pool .board-row-count { background: var(--bg-card); }
 .board-empty { font-size: 13px; color: var(--text-muted); text-align: center; padding: 26px 8px; font-style: italic; font-family: var(--serif); }
 
+/* Inline caution — sits inside the slot it's warning about, right where the
+   drop landed, instead of interrupting with a page-level dialog. */
+.slot-caution {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  padding: 10px 14px; margin-bottom: 14px;
+  background: var(--accent-soft); border: 1px solid rgba(185,104,63,0.3);
+  border-radius: var(--radius-md); color: var(--accent-ink);
+}
+.slot-caution > svg { flex-shrink: 0; }
+.slot-caution span { font-size: 12.5px; line-height: 1.4; }
+.slot-caution strong { color: var(--text-primary); }
+.slot-caution-actions { display: flex; gap: 8px; margin-left: auto; }
+.slot-caution .btn-sm { padding: 6px 12px; font-size: 12.5px; }
+
 /* Pool partitions: Unscheduled above Paused, stacked in the sidebar */
 .pool-partitions { display: flex; flex-direction: column; gap: 20px; }
 .pool-partition + .pool-partition { border-top: 1px dashed var(--border); padding-top: 18px; }
@@ -410,7 +424,7 @@ select.input-field { cursor: pointer; appearance: none;
 .compare-section h2,
 .faq-section h2 { font-family: var(--serif); font-size: 38px; font-weight: 700; text-align: center; margin-bottom: 12px; letter-spacing: -0.5px; }
 .section-sub { text-align: center; color: var(--text-secondary); margin-bottom: 52px; font-size: 16px; }
-.features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; }
+.features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
 .feature-card { padding: 30px 26px; }
 .feature-icon { width: 40px; height: 40px; border-radius: var(--radius-md); background: var(--accent-soft); color: var(--accent-ink); display: flex; align-items: center; justify-content: center; margin-bottom: 18px; }
 .feature-card h3 { font-family: var(--serif); font-size: 18px; font-weight: 600; margin-bottom: 9px; }

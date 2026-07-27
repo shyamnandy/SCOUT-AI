@@ -23,6 +23,9 @@ users_collection = db["users"]
 topics_collection = db["topics"]
 newsletters_collection = db["newsletters"]
 chat_sessions_collection = db["chat_sessions"]
+# Minimal record (name + email) kept after an account deletion, once every
+# other collection has been purged of that user's data.
+deleted_users_collection = db["deleted_users"]
 
 
 async def init_indexes():

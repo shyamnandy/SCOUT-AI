@@ -7,7 +7,10 @@ from app.schemas.auth import (
 )
 from app.services.auth_service import hash_password, verify_password, create_access_token
 from app.services.crypto_service import encrypt
-from app.database import users_collection, topics_collection, newsletters_collection, chat_sessions_collection
+from app.database import (
+    users_collection, topics_collection, newsletters_collection, chat_sessions_collection,
+    deleted_users_collection,
+)
 from app.models.user import create_user_doc
 from app.utils import get_current_user
 from bson import ObjectId
@@ -128,6 +131,9 @@ async def delete_account(
     Permanently delete the current user's account and every record scoped
     to it — topics, newsletter history, and any in-progress chat session.
     Nothing belonging to other users is touched.
+
+    A minimal {name, email} record is archived to `deleted_users` first, since
+    that's the only trace of the account left once `users` is purged too.
     """
     if not verify_password(data.password, user["password_hash"]):
         raise HTTPException(
@@ -136,6 +142,10 @@ async def delete_account(
         )
 
     user_id = user["id"]
+    await deleted_users_collection.insert_one({
+        "name": user["name"],
+        "email": user["email"],
+    })
     await topics_collection.delete_many({"user_id": user_id})
     await newsletters_collection.delete_many({"user_id": user_id})
     await chat_sessions_collection.delete_many({"user_id": user_id})
