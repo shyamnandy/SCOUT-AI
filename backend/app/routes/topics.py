@@ -6,7 +6,6 @@ from app.database import topics_collection, users_collection
 from app.models.topic import create_topic_doc
 from app.utils import get_current_user, require_own_keys
 from bson import ObjectId
-from datetime import datetime, timezone
 
 router = APIRouter(prefix="/api/topics", tags=["Topics"])
 

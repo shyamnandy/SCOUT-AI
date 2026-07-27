@@ -3,20 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light only">
+    <meta name="supported-color-schemes" content="light only">
     <title>Your ScoutAI Digest — {{ slot_label }}</title>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
+        :root {
+            color-scheme: light only;
+            supported-color-schemes: light only;
+        }
         body {
             margin: 0;
             padding: 0;
-            background-color: #efebe1;
+            background-color: #efebe1 !important;
             font-family: 'Inter', -apple-system, 'Segoe UI', Arial, sans-serif;
-            color: #1c202b;
+            color: #1c202b !important;
+        }
+        /* Belt-and-suspenders against Gmail/Outlook auto-dark-mode: without
+           this, clients that ignore the meta tags above still repaint our
+           light cream background as near-black and invert the text. Every
+           colour the design relies on is restated here — anything left out
+           gets inverted on its own and clashes with the rest. */
+        @media (prefers-color-scheme: dark) {
+            body, .body-bg, .body-cell { background-color: #efebe1 !important; color: #1c202b !important; }
+            .masthead { background-color: #f6f3ec !important; }
+            .masthead-brand, .section-head, .article-title { color: #1c202b !important; }
+            .masthead-date, .footer { color: #9b9587 !important; }
+            .masthead-eyebrow, .article-source, .article-link { color: #7a4429 !important; }
+            .article-summary, .closing { color: #3d4250 !important; }
+            .footer strong { color: #64605a !important; }
         }
         .container {
             max-width: 600px;
             margin: 0 auto;
             padding: 36px 20px 48px;
+            text-align: left;
         }
         .masthead {
             background: #f6f3ec;
@@ -62,23 +83,21 @@
             margin: 0;
         }
         .section + .section {
-            margin-top: 36px;
+            margin-top: 40px;
         }
         .section-head {
             font-family: 'Fraunces', Georgia, serif;
-            font-style: italic;
-            font-weight: 500;
-            font-size: 12.5px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #7a4429;
-            margin: 0 0 16px;
-            padding: 0 4px 14px;
-            border-bottom: 1px solid rgba(28, 32, 43, 0.12);
+            font-weight: 700;
+            font-size: 30px;
+            line-height: 1.2;
+            color: #1c202b;
+            margin: 0 0 18px;
+            padding: 0 4px 16px;
+            border-bottom: 3px solid #b9683f;
         }
         .article {
-            padding: 0 4px 22px;
-            margin-bottom: 22px;
+            padding: 0 4px 24px;
+            margin-bottom: 24px;
             border-bottom: 1px solid rgba(28, 32, 43, 0.1);
         }
         .article:last-of-type {
@@ -97,16 +116,21 @@
         .article-title {
             font-family: 'Fraunces', Georgia, serif;
             font-weight: 700;
-            font-size: 18px;
+            font-size: 21px;
             line-height: 1.3;
             color: #1c202b;
             margin: 0 0 9px;
         }
+        /* Body copy is serif on purpose — it reads like a newspaper column.
+           Georgia leads the stack rather than Fraunces because Gmail strips
+           the webfont <link> entirely, so Georgia is what actually renders
+           on the phone. */
         .article-summary {
-            font-size: 14.5px;
-            line-height: 1.6;
-            color: #64605a;
-            margin: 0 0 11px;
+            font-family: Georgia, 'Times New Roman', 'Fraunces', serif;
+            font-size: 18px;
+            line-height: 1.7;
+            color: #3d4250;
+            margin: 0 0 12px;
         }
         .article-link {
             font-size: 13px;
@@ -137,37 +161,47 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="masthead">
-            {% if logo_src %}
-            <img class="masthead-logo" src="{{ logo_src }}" width="40" height="40" alt="ScoutAI">
-            {% endif %}
-            <p class="masthead-brand">ScoutAI<span class="dot">.</span></p>
-            <p class="masthead-date">{{ today }}</p>
-            <hr class="masthead-rule">
-            <p class="masthead-eyebrow">Your {{ slot_label }} Digest</p>
-        </div>
+    <!-- Table with a legacy bgcolor attribute, not just a styled div: Gmail
+         on Android keeps a background it can read off bgcolor, but repaints
+         CSS-only backgrounds when the phone is in dark mode — which is what
+         turned this email near-black despite the color-scheme meta tags. -->
+    <table class="body-bg" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#efebe1">
+        <tr>
+            <td class="body-cell" align="center" bgcolor="#efebe1">
+                <div class="container">
+                    <div class="masthead">
+                        {% if logo_src %}
+                        <img class="masthead-logo" src="{{ logo_src }}" width="40" height="40" alt="ScoutAI">
+                        {% endif %}
+                        <p class="masthead-brand">ScoutAI<span class="dot">.</span></p>
+                        <p class="masthead-date">{{ today }}</p>
+                        <hr class="masthead-rule">
+                        <p class="masthead-eyebrow">Your {{ slot_label }} Digest</p>
+                    </div>
 
-        {% for section in sections %}
-        <div class="section">
-            <p class="section-head">Your {{ section.topic_name }} Briefing</p>
-            {% for article in section.articles %}
-            <div class="article">
-                <p class="article-source">{{ article.source_name }}</p>
-                <h3 class="article-title">{{ article.title }}</h3>
-                <p class="article-summary">{{ article.summary }}</p>
-                <a href="{{ article.source_url }}" class="article-link">Continue reading &rarr;</a>
-            </div>
-            {% endfor %}
-        </div>
-        {% endfor %}
+                    {% for section in sections %}
+                    <div class="section">
+                        <p class="section-head">Your {{ section.topic_name }} Briefing</p>
+                        {% for article in section.articles %}
+                        <div class="article">
+                            <p class="article-source">{{ article.source_name }}</p>
+                            <h3 class="article-title">{{ article.title }}</h3>
+                            <p class="article-summary">{{ article.summary }}</p>
+                            <a href="{{ article.source_url }}" class="article-link">Continue reading &rarr;</a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
 
-        <p class="closing">That's everything for {{ slot_label }}. See you next time.</p>
+                    <p class="closing">That's everything for {{ slot_label }}. See you next time.</p>
 
-        <div class="footer">
-            <p><strong>ScoutAI</strong> — Your Personal News Curator</p>
-            <p>Curated for {{ user_name }}</p>
-        </div>
-    </div>
+                    <div class="footer">
+                        <p><strong>ScoutAI</strong> — Your Personal News Curator</p>
+                        <p>Curated for {{ user_name }}</p>
+                    </div>
+                </div>
+            </td>
+        </tr>
+    </table>
 </body>
 </html>

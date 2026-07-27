@@ -1,7 +1,11 @@
 """Newsletter history API routes."""
 
+from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
-from app.schemas.newsletter import NewsletterResponse, ArticleSummary
+from app.schemas.newsletter import (
+    NewsletterResponse, NewsletterListItem, ArticleSummary, UNSENT_STATUSES, RETENTION_HOURS,
+)
 from app.database import newsletters_collection, topics_collection
 from app.utils import get_current_user
 from bson import ObjectId
@@ -9,49 +13,89 @@ from bson import ObjectId
 router = APIRouter(prefix="/api/newsletters", tags=["Newsletters"])
 
 
-def _nl_to_response(nl: dict, topic_name: str) -> NewsletterResponse:
-    """Convert a MongoDB newsletter document to a NewsletterResponse."""
-    return NewsletterResponse(
-        id=str(nl["_id"]),
-        topic_id=nl["topic_id"],
-        topic_name=topic_name,
-        title=nl["title"],
-        articles=[ArticleSummary(**a) for a in nl.get("articles", [])],
-        html_content=nl.get("html_content", ""),
-        delivered_at=nl["delivered_at"],
-        delivery_status=nl.get("delivery_status", "unknown"),
+def _retention_cutoff() -> datetime:
+    """Oldest send time still inside the retention window."""
+    return datetime.now(timezone.utc) - timedelta(hours=RETENTION_HOURS)
+
+
+def _display_status(nl: dict) -> str:
+    """Collapse internal pipeline states into a single honest label —
+    History shouldn't leak scheduler vocabulary ("draft") that reads like
+    the newsletter was delivered when it wasn't."""
+    status = nl.get("delivery_status", "unknown")
+    return "unsent" if status in UNSENT_STATUSES else status
+
+
+async def _topic_names(topic_ids: set[str]) -> dict[str, str]:
+    """Batch topic-name lookup for a page of newsletters.
+
+    Looking these up one `find_one` per newsletter (the original approach)
+    meant a full extra MongoDB round-trip for every row in the list — up to
+    `limit` (50) sequential awaits before the response could return. On a
+    hosted DB that's easily several seconds just for History to load. One
+    `$in` query fetches them all at once regardless of page size.
+    """
+    if not topic_ids:
+        return {}
+    cursor = topics_collection.find(
+        {"_id": {"$in": [ObjectId(tid) for tid in topic_ids]}},
+        {"name": 1},
     )
+    return {str(doc["_id"]): doc["name"] async for doc in cursor}
 
 
-@router.get("/", response_model=list[NewsletterResponse])
+@router.get("/", response_model=list[NewsletterListItem])
 async def list_newsletters(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=50),
     topic_id: str | None = None,
     user: dict = Depends(get_current_user),
 ):
-    """Get newsletter history for the current user, with optional topic filter."""
-    # Drafts are pre-curated content awaiting their delivery slot — not history.
-    query = {"user_id": user["id"], "delivery_status": {"$ne": "draft"}}
+    """Get newsletter history for the current user, with optional topic filter.
+
+    Includes drafts — curated content shows up here as soon as it's
+    curated, not just once its delivery slot actually sends it.
+
+    Only the last RETENTION_HOURS are served. The worker deletes past that
+    age too; filtering here as well keeps History honest in the window
+    between sweeps, and if the scheduler ever stops ticking.
+    """
+    query = {"user_id": user["id"], "delivered_at": {"$gte": _retention_cutoff()}}
     if topic_id:
         query["topic_id"] = topic_id
 
-    cursor = (
-        newsletters_collection
-        .find(query)
-        .sort("delivered_at", -1)
-        .skip(skip)
-        .limit(limit)
-    )
+    # Aggregation rather than find(): $size collapses the articles array to
+    # a count in the database, so the article bodies and rendered HTML never
+    # cross the wire from Mongo at all, let alone reach the API response.
+    cursor = newsletters_collection.aggregate([
+        {"$match": query},
+        {"$sort": {"delivered_at": -1}},
+        {"$skip": skip},
+        {"$limit": limit},
+        {"$project": {
+            "topic_id": 1,
+            "title": 1,
+            "delivered_at": 1,
+            "delivery_status": 1,
+            "article_count": {"$size": {"$ifNull": ["$articles", []]}},
+        }},
+    ])
     newsletters = await cursor.to_list(length=limit)
 
-    results = []
-    for nl in newsletters:
-        topic = await topics_collection.find_one({"_id": ObjectId(nl["topic_id"])})
-        topic_name = topic["name"] if topic else "Deleted Topic"
-        results.append(_nl_to_response(nl, topic_name))
+    names = await _topic_names({nl["topic_id"] for nl in newsletters})
 
-    return results
+    return [
+        NewsletterListItem(
+            id=str(nl["_id"]),
+            topic_id=nl["topic_id"],
+            topic_name=names.get(nl["topic_id"], "Deleted Topic"),
+            title=nl["title"],
+            article_count=nl["article_count"],
+            delivered_at=nl["delivered_at"],
+            delivery_status=_display_status(nl),
+        )
+        for nl in newsletters
+    ]
 
 
 @router.get("/{newsletter_id}", response_model=NewsletterResponse)
@@ -59,18 +103,35 @@ async def get_newsletter(
     newsletter_id: str,
     user: dict = Depends(get_current_user),
 ):
-    """Get a specific newsletter by ID."""
+    """Get a specific newsletter by ID, if it's still inside the retention
+    window — an ID held open in a stale tab shouldn't resurrect content the
+    listing has already stopped serving."""
     nl = await newsletters_collection.find_one({
         "_id": ObjectId(newsletter_id),
         "user_id": user["id"],
+        "delivered_at": {"$gte": _retention_cutoff()},
     })
     if not nl:
         raise HTTPException(status_code=404, detail="Newsletter not found")
 
-    topic = await topics_collection.find_one({"_id": ObjectId(nl["topic_id"])})
+    topic = await topics_collection.find_one({"_id": ObjectId(nl["topic_id"])}, {"name": 1})
     topic_name = topic["name"] if topic else "Deleted Topic"
+    articles = nl.get("articles", [])
 
-    return _nl_to_response(nl, topic_name)
+    return NewsletterResponse(
+        id=str(nl["_id"]),
+        topic_id=nl["topic_id"],
+        topic_name=topic_name,
+        title=nl["title"],
+        article_count=len(articles),
+        articles=[ArticleSummary(**a) for a in articles],
+        # Prefer the combined HTML when this topic went out as part of a
+        # batch — that's what actually landed in the inbox. html_content is
+        # only this one topic's section.
+        html_content=nl.get("batch_html") or nl.get("html_content", ""),
+        delivered_at=nl["delivered_at"],
+        delivery_status=_display_status(nl),
+    )
 
 
 @router.post("/trigger/{topic_id}")

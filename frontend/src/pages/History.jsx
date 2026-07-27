@@ -1,11 +1,17 @@
 import { useState, useEffect } from 'react';
-import { getNewsletters } from '../services/api';
+import { getNewsletters, getNewsletter } from '../services/api';
 import Icon from '../components/Icon';
 
 export default function History() {
   const [newsletters, setNewsletters] = useState([]);
   const [loading, setLoading] = useState(true);
+  // The list row (cheap: no articles/html) selected for preview.
+  const [selectedId, setSelectedId] = useState(null);
+  // The full newsletter (articles + html_content), fetched on demand once
+  // a row is clicked — the list endpoint no longer carries either, so a
+  // page with many rows doesn't ship every email's full markup up front.
   const [selectedNl, setSelectedNl] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   useEffect(() => {
     getNewsletters({ limit: 50 })
@@ -13,6 +19,16 @@ export default function History() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
+
+  const selectNewsletter = (id) => {
+    setSelectedId(id);
+    setSelectedNl(null);
+    setPreviewLoading(true);
+    getNewsletter(id)
+      .then((res) => setSelectedNl(res.data))
+      .catch(console.error)
+      .finally(() => setPreviewLoading(false));
+  };
 
   if (loading) return <div className="page" style={{ textAlign: 'center', paddingTop: 80 }}><p style={{ color: 'var(--text-muted)' }}>Loading newsletters...</p></div>;
 
@@ -31,14 +47,14 @@ export default function History() {
           <p>Your newsletters will appear here once the AI starts delivering them</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: selectedNl ? '1fr 1fr' : '1fr', gap: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: selectedId ? '1fr 1fr' : '1fr', gap: 24 }}>
           <div className="newsletter-list">
             {newsletters.map((nl) => (
               <div
                 key={nl.id}
-                className={`glass-card newsletter-item ${selectedNl?.id === nl.id ? 'selected' : ''}`}
-                onClick={() => setSelectedNl(nl)}
-                style={selectedNl?.id === nl.id ? { borderColor: 'var(--accent)' } : {}}
+                className={`glass-card newsletter-item ${selectedId === nl.id ? 'selected' : ''}`}
+                onClick={() => selectNewsletter(nl.id)}
+                style={selectedId === nl.id ? { borderColor: 'var(--accent)' } : {}}
               >
                 <div className="newsletter-item-header">
                   <span className="newsletter-item-title">{nl.title}</span>
@@ -48,21 +64,30 @@ export default function History() {
                 </div>
                 <div className="newsletter-item-meta">
                   <span><Icon name="grid" size={13} /> {nl.topic_name}</span>
-                  <span><Icon name="mail" size={13} /> {nl.articles.length} articles</span>
+                  <span><Icon name="mail" size={13} /> {nl.article_count} articles</span>
                   <span className="chip" style={{ fontSize: 11 }}>{nl.delivery_status}</span>
                 </div>
               </div>
             ))}
           </div>
 
-          {selectedNl && (
+          {selectedId && (
             <div className="glass-card newsletter-preview">
-              <h3 style={{ marginBottom: 16 }}>{selectedNl.title}</h3>
-              <iframe
-                srcDoc={selectedNl.html_content}
-                title="Newsletter Preview"
-                style={{ width: '100%', border: 'none', borderRadius: 'var(--radius-md)', minHeight: 500, background: '#0a0e1a' }}
-              />
+              {previewLoading || !selectedNl ? (
+                <p style={{ color: 'var(--text-muted)' }}>Loading preview...</p>
+              ) : (
+                <>
+                  <h3 style={{ marginBottom: 16 }}>{selectedNl.title}</h3>
+                  {/* Cream backdrop, matching the newsletter's own page colour —
+                      a dark one shows through as a band around the email while
+                      it loads and wherever its content is shorter than the frame. */}
+                  <iframe
+                    srcDoc={selectedNl.html_content}
+                    title="Newsletter Preview"
+                    style={{ width: '100%', border: 'none', borderRadius: 'var(--radius-md)', minHeight: 500, background: '#efebe1' }}
+                  />
+                </>
+              )}
             </div>
           )}
         </div>

@@ -594,7 +594,7 @@ select.input-field { cursor: pointer; appearance: none;
   background: var(--accent-soft); color: var(--accent-ink);
   display: flex; align-items: center; justify-content: center;
 }
-.api-keys-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+.api-keys-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 20px; }
 .api-key-card {
   position: relative;
   border: 1px solid var(--border-soft); border-radius: var(--radius-md);

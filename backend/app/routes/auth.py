@@ -68,6 +68,7 @@ async def get_me(user: dict = Depends(get_current_user)):
         batch_delivery=user.get("batch_delivery", True),
         has_resend_key=bool(user.get("resend_api_key")),
         has_groq_key=bool(user.get("groq_api_key")),
+        has_tavily_key=bool(user.get("tavily_api_key")),
     )
 
 
@@ -90,6 +91,7 @@ async def update_preferences(
         batch_delivery=data.batch_delivery,
         has_resend_key=bool(user.get("resend_api_key")),
         has_groq_key=bool(user.get("groq_api_key")),
+        has_tavily_key=bool(user.get("tavily_api_key")),
     )
 
 
@@ -99,7 +101,7 @@ async def update_api_keys(
     user: dict = Depends(get_current_user),
 ):
     """
-    Save the caller's own Resend/Groq API keys, encrypted at rest.
+    Save the caller's own Resend/Groq/Tavily API keys, encrypted at rest.
 
     Sending an empty string for a field clears it (falls back to the
     shared app-level key); omitting a field leaves it untouched.
@@ -119,6 +121,7 @@ async def update_api_keys(
         batch_delivery=fresh.get("batch_delivery", True),
         has_resend_key=bool(fresh.get("resend_api_key")),
         has_groq_key=bool(fresh.get("groq_api_key")),
+        has_tavily_key=bool(fresh.get("tavily_api_key")),
     )
 
 

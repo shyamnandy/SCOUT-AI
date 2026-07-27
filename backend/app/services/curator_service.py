@@ -6,7 +6,7 @@ from html import escape
 
 from langchain_community.document_loaders import WebBaseLoader
 from app.config import get_settings, get_llm
-from app.schemas.newsletter import ArticleSummary, NewsletterOutput
+from app.schemas.newsletter import ArticleSummary
 from app.services.search_service import dedupe_by_event
 from jinja2 import Environment
 from pathlib import Path
@@ -287,24 +287,30 @@ def render_batch_newsletter(sections: list[dict], user_name: str, slot_label: st
         parts = []
         for s in sections:
             parts.append(
-                f'<p style="font-family:Georgia,serif;font-style:italic;font-weight:500;'
-                f'font-size:12.5px;text-transform:uppercase;letter-spacing:1px;color:#7a4429;'
-                f'padding-bottom:14px;margin:0 0 16px;border-bottom:1px solid rgba(28,32,43,0.12);">'
+                f'<p style="font-family:Georgia,serif;font-weight:700;font-size:30px;'
+                f'line-height:1.2;color:#1c202b;padding:0 4px 16px;margin:0 0 18px;'
+                f'border-bottom:3px solid #b9683f;">'
                 f'Your {escape(s["topic_name"])} Briefing</p>'
             )
             for a in s["articles"]:
                 parts.append(
                     f'<div style="padding:0 4px 18px;margin-bottom:18px;border-bottom:1px solid rgba(28,32,43,0.1);">'
-                    f'<h3 style="color:#1c202b;margin:0 0 8px;font-size:16px;font-family:Georgia,serif;">{escape(a["title"])}</h3>'
-                    f'<p style="color:#64605a;margin:0 0 10px;font-size:14px;line-height:1.6;">{escape(a["summary"])}</p>'
+                    f'<h3 style="color:#1c202b;margin:0 0 8px;font-size:21px;font-family:Georgia,serif;">{escape(a["title"])}</h3>'
+                    f'<p style="color:#3d4250;margin:0 0 10px;font-family:Georgia,\'Times New Roman\',serif;font-size:18px;line-height:1.7;">{escape(a["summary"])}</p>'
                     f'<a href="{escape(a["source_url"])}" style="color:#7a4429;font-size:13px;font-weight:600;text-decoration:none;">'
                     f'Read on {escape(a["source_name"])} &rarr;</a></div>'
                 )
         return (
-            '<html><body style="background:#efebe1;color:#1c202b;font-family:Arial,sans-serif;padding:36px 20px;">'
-            '<div style="max-width:600px;margin:0 auto;">'
+            '<html><head>'
+            '<meta name="color-scheme" content="light only">'
+            '<meta name="supported-color-schemes" content="light only">'
+            '</head>'
+            '<body style="background:#efebe1;color:#1c202b;font-family:Arial,sans-serif;margin:0;padding:0;">'
+            '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#efebe1">'
+            '<tr><td align="center" bgcolor="#efebe1" style="padding:36px 20px;">'
+            '<div style="max-width:600px;margin:0 auto;text-align:left;">'
             f'<h1 style="font-family:Georgia,serif;">ScoutAI — {escape(slot_label)}</h1>{"".join(parts)}'
-            "</div></body></html>"
+            "</div></td></tr></table></body></html>"
         )
 
 
@@ -326,15 +332,21 @@ def _fallback_html(
         articles_html += f"""
         <div style="padding:0 4px 20px;margin-bottom:20px;border-bottom:1px solid rgba(28,32,43,0.1);">
             <p style="color:#7a4429;margin:0 0 8px;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;">{escape(a.source_name)}</p>
-            <h3 style="color:#1c202b;margin:0 0 9px;font-size:18px;font-family:Georgia,serif;">{escape(a.title)}</h3>
-            <p style="color:#64605a;margin:0 0 11px;font-size:14.5px;line-height:1.6;">{escape(a.summary)}</p>
+            <h3 style="color:#1c202b;margin:0 0 9px;font-size:23px;font-family:Georgia,serif;">{escape(a.title)}</h3>
+            <p style="color:#3d4250;margin:0 0 11px;font-family:Georgia,'Times New Roman',serif;font-size:18px;line-height:1.7;">{escape(a.summary)}</p>
             <a href="{escape(a.source_url)}" style="color:#7a4429;font-size:13px;font-weight:600;text-decoration:none;border-bottom:1px solid rgba(122,68,41,0.35);">Continue reading &rarr;</a>
         </div>"""
 
     return f"""<!DOCTYPE html>
 <html>
-<body style="background:#efebe1;color:#1c202b;font-family:'Inter',Arial,sans-serif;padding:36px 20px;">
-    <div style="max-width:600px;margin:0 auto;">
+<head>
+    <meta name="color-scheme" content="light only">
+    <meta name="supported-color-schemes" content="light only">
+</head>
+<body style="background:#efebe1;color:#1c202b;font-family:'Inter',Arial,sans-serif;margin:0;padding:0;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#efebe1">
+    <tr><td align="center" bgcolor="#efebe1" style="padding:36px 20px;">
+    <div style="max-width:600px;margin:0 auto;text-align:left;">
         <div style="background:#f6f3ec;border:1px solid rgba(28,32,43,0.12);border-radius:14px;padding:26px 24px;text-align:center;margin-bottom:28px;">
             <p style="font-family:Georgia,serif;font-weight:700;font-size:24px;color:#1c202b;margin:0;">ScoutAI<span style="color:#b9683f;">.</span></p>
             <p style="font-family:Georgia,serif;font-style:italic;font-size:13px;color:#9b9587;margin:8px 0 0;">{escape(topic_name)}</p>
@@ -343,5 +355,7 @@ def _fallback_html(
         <p style="font-family:Georgia,serif;font-style:italic;color:#3d4250;font-size:15px;margin-top:8px;text-align:center;padding-top:24px;border-top:1px solid rgba(28,32,43,0.12);">{escape(closing)}</p>
         <p style="color:#9b9587;font-size:11.5px;text-align:center;margin-top:20px;">Powered by ScoutAI</p>
     </div>
+    </td></tr>
+    </table>
 </body>
 </html>"""

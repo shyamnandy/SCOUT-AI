@@ -28,22 +28,28 @@ CATEGORY_OUTLET_HINTS = {
 DEFAULT_OUTLET_HINT = "Reuters, AP, BBC"
 
 
-def get_search_tool(max_results: int = 12) -> TavilySearch:
+def get_search_tool(max_results: int = 12, tavily_api_key: str | None = None) -> TavilySearch:
     """Get the Tavily search tool configured for recent news.
+
+    Args:
+        tavily_api_key: A user's own Tavily key, if they've supplied one.
+            Falls back to the shared app-level key everywhere it's threaded
+            through below.
 
     The key must go through TavilySearchAPIWrapper: TavilySearch itself has
     no `api_key` field and is configured with `extra="ignore"`, so passing
     one directly is silently dropped and the wrapper then falls back to a
     TAVILY_API_KEY environment variable that the Celery worker doesn't have.
     """
-    if not settings.TAVILY_API_KEY:
-        raise RuntimeError("TAVILY_API_KEY is not configured")
+    key = tavily_api_key or settings.TAVILY_API_KEY
+    if not key:
+        raise RuntimeError("No Tavily API key configured (set TAVILY_API_KEY or a per-user key)")
 
     return TavilySearch(
         max_results=max_results,
         topic="news",
         time_range="day",
-        api_wrapper=TavilySearchAPIWrapper(tavily_api_key=settings.TAVILY_API_KEY),
+        api_wrapper=TavilySearchAPIWrapper(tavily_api_key=key),
     )
 
 
@@ -119,6 +125,7 @@ async def search_for_topic(
     description: str | None = None,
     category: str | None = None,
     groq_api_key: str | None = None,
+    tavily_api_key: str | None = None,
 ) -> list[dict]:
     """
     Search across several targeted queries, then shortlist the best source
@@ -130,6 +137,7 @@ async def search_for_topic(
         description: Optional user-stated intent/focus for this topic
         category: Optional topic category, used to bias outlet legitimacy
         groq_api_key: A user's own Groq key, if they've supplied one.
+        tavily_api_key: A user's own Tavily key, if they've supplied one.
 
     Returns:
         Up to SHORTLIST_SIZE articles, each covering a different event.
@@ -139,7 +147,7 @@ async def search_for_topic(
     merged: dict[str, dict] = {}
     for query in queries:
         try:
-            search_tool = get_search_tool()
+            search_tool = get_search_tool(tavily_api_key=tavily_api_key)
             raw_results = search_tool.invoke({"query": query})
         except Exception as e:
             print(f"Tavily search error for query '{query}': {e}")
@@ -153,7 +161,7 @@ async def search_for_topic(
     if not merged:
         # Fall back to the loosest possible query before giving up entirely.
         try:
-            search_tool = get_search_tool()
+            search_tool = get_search_tool(tavily_api_key=tavily_api_key)
             raw_results = search_tool.invoke({"query": f"{topic_name} latest updates today"})
             for article in _normalize_results(raw_results):
                 key = article.get("url") or article.get("link") or article.get("title", "")

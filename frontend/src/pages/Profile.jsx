@@ -27,13 +27,24 @@ const PROVIDERS = [
     getLabel: 'console.groq.com/keys',
     blurb: 'Powers the onboarding chat and AI curation. Required before you can start a chat.',
   },
+  {
+    field: 'tavily_api_key',
+    hasField: 'has_tavily_key',
+    name: 'Tavily',
+    icon: 'search',
+    required: true,
+    placeholder: 'tvly-...',
+    getUrl: 'https://app.tavily.com/home',
+    getLabel: 'app.tavily.com',
+    blurb: 'Powers news search for curation. Required before you can start a chat — the shared key has a monthly usage cap shared by every user.',
+  },
 ];
 
 export default function Profile() {
   const { user, setUser, logout } = useAuth();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [keyInputs, setKeyInputs] = useState({ resend_api_key: '', groq_api_key: '' });
+  const [keyInputs, setKeyInputs] = useState({ resend_api_key: '', groq_api_key: '', tavily_api_key: '' });
   const [keysSaving, setKeysSaving] = useState(false);
   const [keysMsg, setKeysMsg] = useState('');
   const [toast, setToast] = useState(null);
@@ -71,10 +82,11 @@ export default function Profile() {
     const payload = {};
     if (keyInputs.resend_api_key) payload.resend_api_key = keyInputs.resend_api_key;
     if (keyInputs.groq_api_key) payload.groq_api_key = keyInputs.groq_api_key;
+    if (keyInputs.tavily_api_key) payload.tavily_api_key = keyInputs.tavily_api_key;
     try {
       const res = await updateApiKeys(payload);
       setUser(res.data);
-      setKeyInputs({ resend_api_key: '', groq_api_key: '' });
+      setKeyInputs({ resend_api_key: '', groq_api_key: '', tavily_api_key: '' });
       setKeysMsg('Saved.');
     } catch (err) {
       setError(getErrorMessage(err, 'Could not save your keys.'));
@@ -148,7 +160,7 @@ export default function Profile() {
     }
   };
 
-  const hasAnyInput = keyInputs.resend_api_key || keyInputs.groq_api_key;
+  const hasAnyInput = keyInputs.resend_api_key || keyInputs.groq_api_key || keyInputs.tavily_api_key;
 
   return (
     <div className="page animate-fade" style={{ maxWidth: 640 }}>
@@ -217,8 +229,9 @@ export default function Profile() {
           <div>
             <div className="profile-row-label">Your Own API Keys</div>
             <div className="profile-row-hint">
-              A Groq key powers the AI, a Resend key powers delivery — both are required before you
-              can start a chat. Both are free and take about a minute to grab.
+              A Groq key powers the AI, a Resend key powers delivery, and a Tavily key powers news
+              search — all three are required before you can start a chat. All are free and take
+              about a minute each to grab.
             </div>
           </div>
         </div>

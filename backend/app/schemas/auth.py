@@ -30,6 +30,7 @@ class UserResponse(BaseModel):
     # Whether the user has their own key on file — never the key itself.
     has_resend_key: bool = False
     has_groq_key: bool = False
+    has_tavily_key: bool = False
 
 
 class PreferencesRequest(BaseModel):
@@ -40,6 +41,7 @@ class ApiKeysRequest(BaseModel):
     # Omit a field to leave it unchanged; send "" to clear a previously-set key.
     resend_api_key: str | None = None
     groq_api_key: str | None = None
+    tavily_api_key: str | None = None
 
 
 class DeleteAccountRequest(BaseModel):

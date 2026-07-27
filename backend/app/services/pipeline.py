@@ -31,12 +31,15 @@ async def curate_topic(topic: dict, user: dict) -> dict | None:
     description = topic.get("description")
     category = topic.get("category")
     user_name = user["name"]
-    # A user's own key, if they've set one — falls back to the shared
-    # app-level key everywhere it's threaded through below.
+    # A user's own keys, if they've set them — fall back to the shared
+    # app-level keys everywhere they're threaded through below.
     groq_api_key = decrypt(user.get("groq_api_key"))
+    tavily_api_key = decrypt(user.get("tavily_api_key"))
 
     print(f"[curate] Searching: {topic_name}")
-    sources = await search_for_topic(keywords, topic_name, description, category, groq_api_key)
+    sources = await search_for_topic(
+        keywords, topic_name, description, category, groq_api_key, tavily_api_key
+    )
     if not sources:
         print(f"[curate] No sources found for '{topic_name}'")
         return None

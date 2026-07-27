@@ -67,7 +67,7 @@ export default function Onboarding() {
       <div className="onboarding-grid">
         <div className="onboarding-panel">
           <h2><Icon name="chat" size={18} /> Chat with AI</h2>
-          <ChatOnboarding onTopicReady={setPendingTopic} locked={!user?.has_groq_key || !user?.has_resend_key} />
+          <ChatOnboarding onTopicReady={setPendingTopic} locked={!user?.has_groq_key || !user?.has_resend_key || !user?.has_tavily_key} />
         </div>
 
         <div className="onboarding-panel">

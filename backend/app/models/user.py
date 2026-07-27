@@ -21,4 +21,5 @@ def create_user_doc(email: str, name: str, password_hash: str) -> dict:
         # None means "use the shared app-level key" for that service.
         "resend_api_key": None,
         "groq_api_key": None,
+        "tavily_api_key": None,
     }

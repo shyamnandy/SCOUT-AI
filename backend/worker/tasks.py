@@ -19,12 +19,15 @@ Progress is tracked per (topic, slot, local date), so a topic scheduled at
 import asyncio
 from datetime import datetime, timezone, timedelta
 from bson import ObjectId
+from app.schemas.newsletter import RETENTION_HOURS
 from worker.celery_app import celery_app
 
 # How long before a delivery slot curation starts.
 CURATE_LEAD_MINUTES = 5
 # Beat runs every 5 minutes; match the matching tolerance to that.
 WINDOW_MINUTES = 5
+# Timezone assumed when a topic doesn't carry its own.
+DEFAULT_TIMEZONE = "Asia/Kolkata"
 
 
 def _get_sync_db():
@@ -56,7 +59,7 @@ def _local_now(topic: dict, now_utc: datetime) -> datetime:
     """Convert UTC to the topic's configured local time."""
     try:
         import pytz
-        return now_utc.astimezone(pytz.timezone(topic.get("timezone", "Asia/Kolkata")))
+        return now_utc.astimezone(pytz.timezone(topic.get("timezone", DEFAULT_TIMEZONE)))
     except Exception:
         return now_utc
 
@@ -102,6 +105,8 @@ def check_and_dispatch_newsletters():
     """
     db = _get_sync_db()
     now_utc = datetime.now(timezone.utc)
+
+    pruned = _prune_old_newsletters(db, now_utc)
 
     active_topics = list(db.topics.find({"is_active": True}))
 
@@ -149,8 +154,23 @@ def check_and_dispatch_newsletters():
         "curation_jobs": curated,
         "dispatch_jobs": dispatched,
         "expired": expired,
+        "pruned": pruned,
         "timestamp": now_utc.isoformat(),
     }
+
+
+def _prune_old_newsletters(db, now_utc: datetime) -> int:
+    """Delete newsletters more than RETENTION_HOURS past their send time.
+
+    `delivered_at` starts as the curation time and is overwritten with the
+    real send time on dispatch, so this measures from the send for anything
+    that shipped, and from curation for a draft that never did — which is
+    the right moment to start counting in both cases. A draft waiting on
+    its slot is only minutes old, nowhere near the cutoff, so this can't
+    delete a send that hasn't happened yet.
+    """
+    cutoff = now_utc - timedelta(hours=RETENTION_HOURS)
+    return db.newsletters.delete_many({"delivered_at": {"$lt": cutoff}}).deleted_count
 
 
 def _curate_and_save(db, topic: dict, user: dict, slot: str | None, local_date: str | None) -> bool:
