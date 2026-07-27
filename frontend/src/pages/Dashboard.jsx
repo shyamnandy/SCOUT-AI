@@ -51,24 +51,8 @@ export default function Dashboard() {
   const [editingSlot, setEditingSlot] = useState(null);
   const [editSlotValue, setEditSlotValue] = useState('');
   const [error, setError] = useState('');
-  // A drop onto a slot whose time already passed today — held here instead of
-  // committing immediately so the row itself can ask before it's scheduled.
-  const [pendingDrop, setPendingDrop] = useState(null);
-  // The caution banner's buttons stay inert for a beat after it mounts: the
-  // drag overlay vanishes the instant a drop lands (dropAnimation is off), so
-  // the trailing native click from that same gesture can land on whatever's
-  // now under the pointer — which, without this, would be "Schedule for
-  // tomorrow" auto-confirming a drop the user never actually saw the banner for.
-  const [dropCautionArmed, setDropCautionArmed] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!pendingDrop) return;
-    setDropCautionArmed(false);
-    const timer = setTimeout(() => setDropCautionArmed(true), 350);
-    return () => clearTimeout(timer);
-  }, [pendingDrop]);
 
   // Mouse starts dragging after a small move so plain clicks on the card's
   // buttons still register; touch waits for a short hold so a swipe can
@@ -155,25 +139,15 @@ export default function Dashboard() {
     if (current.includes(targetTime)) return;
 
     // Slot time already gone by today — the next beat tick can't catch it,
-    // so first delivery will actually be tomorrow. Hold the drop and let the
-    // row itself ask, instead of committing right away.
-    if (hasSlotPassedToday(targetTime)) {
-      setPendingDrop({ topic, time: targetTime, current });
-      return;
-    }
+    // so first delivery will actually be tomorrow. Confirm before committing.
+    if (hasSlotPassedToday(targetTime) && !confirm(
+      `${formatSlot(targetTime)} has already passed for today, so this topic's first delivery will be tomorrow at that time instead. Schedule it anyway?`
+    )) return;
 
     setTopicTimes(topic, [...current, targetTime]);
   };
 
   const handleDragCancel = () => setActiveTopic(null);
-
-  const confirmPendingDrop = () => {
-    if (!pendingDrop) return;
-    setTopicTimes(pendingDrop.topic, [...pendingDrop.current, pendingDrop.time]);
-    setPendingDrop(null);
-  };
-
-  const cancelPendingDrop = () => setPendingDrop(null);
 
   const handleUnschedule = (topic, time) => {
     setTopicTimes(topic, (topic.delivery_times || []).filter((t) => t !== time));
@@ -294,17 +268,6 @@ export default function Dashboard() {
           )}
         </div>
       </div>
-
-      {!isPool && pendingDrop?.time === time && (
-        <div className="slot-caution animate-fade">
-          <Icon name="alertCircle" size={15} />
-          <span><strong>{formatSlot(time)}</strong> already passed today — first delivery would be tomorrow.</span>
-          <div className="slot-caution-actions">
-            <button className="btn btn-primary btn-sm" onClick={confirmPendingDrop} disabled={!dropCautionArmed}>Schedule for tomorrow</button>
-            <button className="btn btn-secondary btn-sm" onClick={cancelPendingDrop} disabled={!dropCautionArmed}>Cancel</button>
-          </div>
-        </div>
-      )}
 
       {items.length === 0
         ? <p className="board-empty">Drag a topic here to deliver it at this time.</p>
