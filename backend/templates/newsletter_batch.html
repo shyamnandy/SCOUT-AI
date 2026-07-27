@@ -61,25 +61,20 @@
             color: #7a4429;
             margin: 0;
         }
-        .intro {
-            font-size: 15px;
-            line-height: 1.65;
-            color: #3d4250;
-            margin: 0 0 8px;
-            padding: 0 4px;
-        }
-        .section {
-            margin-top: 32px;
+        .section + .section {
+            margin-top: 36px;
         }
         .section-head {
             font-family: 'Fraunces', Georgia, serif;
-            font-weight: 700;
-            font-size: 17px;
-            color: #1c202b;
-            padding: 0 4px 10px;
-            margin: 0 0 14px;
-            border-bottom: 2px solid #b9683f;
-            display: inline-block;
+            font-style: italic;
+            font-weight: 500;
+            font-size: 12.5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #7a4429;
+            margin: 0 0 16px;
+            padding: 0 4px 14px;
+            border-bottom: 1px solid rgba(28, 32, 43, 0.12);
         }
         .article {
             padding: 0 4px 22px;
@@ -153,14 +148,9 @@
             <p class="masthead-eyebrow">Your {{ slot_label }} Digest</p>
         </div>
 
-        <p class="intro">
-            Hey {{ user_name }} — here {% if topic_count == 1 %}is your update{% else %}are your {{ topic_count }} updates{% endif %}
-            for this delivery, curated and condensed.
-        </p>
-
         {% for section in sections %}
         <div class="section">
-            <p class="section-head">{{ section.topic_name }}</p>
+            <p class="section-head">Your {{ section.topic_name }} Briefing</p>
             {% for article in section.articles %}
             <div class="article">
                 <p class="article-source">{{ article.source_name }}</p>
@@ -176,6 +166,7 @@
 
         <div class="footer">
             <p><strong>ScoutAI</strong> — Your Personal News Curator</p>
+            <p>Curated for {{ user_name }}</p>
         </div>
     </div>
 </body>

@@ -211,20 +211,20 @@ async def generate_newsletter(
     """
     llm = get_llm(temperature=0.5, groq_api_key=groq_api_key)
 
-    # Generate a personalized greeting and closing
+    # Generate a personalized closing line
     articles_summary = "\n".join(
         f"- {a.title} ({a.source_name}): {a.summary}" for a in articles
     )
 
-    prompt = f"""Write a brief, warm newsletter intro (1-2 sentences) and closing (1 sentence) for a personalized newsletter.
+    prompt = f"""Write a brief, warm one-sentence closing line for a personalized newsletter.
 
 Topic: {topic_name}
 Reader: {user_name}
 Today's articles:
 {articles_summary}
 
-Return JSON with exactly: {{"greeting": "...", "closing": "..."}}
-The greeting should reference the topic and sound personal. The closing should encourage the reader.
+Return JSON with exactly: {{"closing": "..."}}
+The closing should encourage the reader to keep following the topic.
 Return ONLY the JSON, no other text."""
 
     response = await llm.ainvoke(prompt)
@@ -236,10 +236,8 @@ Return ONLY the JSON, no other text."""
             if text.startswith("json"):
                 text = text[4:]
         meta = json.loads(text)
-        greeting = meta.get("greeting", f"Here's your {topic_name} update!")
         closing = meta.get("closing", "Stay informed!")
     except Exception:
-        greeting = f"Hey {user_name}! Here's your {topic_name} update for today."
         closing = "See you next time! — ScoutAI"
 
     # Render the HTML template
@@ -249,7 +247,6 @@ Return ONLY the JSON, no other text."""
         template = _jinja_env.from_string(template_content)
         html = template.render(
             topic_name=topic_name,
-            greeting=greeting,
             articles=articles,
             closing=closing,
             user_name=user_name,
@@ -259,7 +256,7 @@ Return ONLY the JSON, no other text."""
     except Exception as e:
         print(f"Template render error: {e}")
         # Fallback to inline HTML
-        html = _fallback_html(topic_name, greeting, articles, closing)
+        html = _fallback_html(topic_name, articles, closing)
 
     return html
 
@@ -280,7 +277,6 @@ def render_batch_newsletter(sections: list[dict], user_name: str, slot_label: st
             sections=sections,
             user_name=user_name,
             slot_label=slot_label,
-            topic_count=len(sections),
             logo_src=_logo_src(),
             today=_today_label(),
         )
@@ -291,9 +287,10 @@ def render_batch_newsletter(sections: list[dict], user_name: str, slot_label: st
         parts = []
         for s in sections:
             parts.append(
-                f'<p style="font-family:Georgia,serif;font-weight:700;font-size:17px;'
-                f'color:#1c202b;border-bottom:2px solid #b9683f;display:inline-block;'
-                f'padding-bottom:8px;">{escape(s["topic_name"])}</p>'
+                f'<p style="font-family:Georgia,serif;font-style:italic;font-weight:500;'
+                f'font-size:12.5px;text-transform:uppercase;letter-spacing:1px;color:#7a4429;'
+                f'padding-bottom:14px;margin:0 0 16px;border-bottom:1px solid rgba(28,32,43,0.12);">'
+                f'Your {escape(s["topic_name"])} Briefing</p>'
             )
             for a in s["articles"]:
                 parts.append(
@@ -313,7 +310,6 @@ def render_batch_newsletter(sections: list[dict], user_name: str, slot_label: st
 
 def _fallback_html(
     topic_name: str,
-    greeting: str,
     articles: list[ArticleSummary],
     closing: str,
 ) -> str:
@@ -343,7 +339,6 @@ def _fallback_html(
             <p style="font-family:Georgia,serif;font-weight:700;font-size:24px;color:#1c202b;margin:0;">ScoutAI<span style="color:#b9683f;">.</span></p>
             <p style="font-family:Georgia,serif;font-style:italic;font-size:13px;color:#9b9587;margin:8px 0 0;">{escape(topic_name)}</p>
         </div>
-        <p style="color:#3d4250;font-size:15px;line-height:1.65;padding:0 4px;">{escape(greeting)}</p>
         {articles_html}
         <p style="font-family:Georgia,serif;font-style:italic;color:#3d4250;font-size:15px;margin-top:8px;text-align:center;padding-top:24px;border-top:1px solid rgba(28,32,43,0.12);">{escape(closing)}</p>
         <p style="color:#9b9587;font-size:11.5px;text-align:center;margin-top:20px;">Powered by ScoutAI</p>

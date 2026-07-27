@@ -18,6 +18,16 @@ const formatSlot = (t) => {
   return `${hour12}:${String(m).padStart(2, '0')} ${suffix}`;
 };
 
+/** True once today's occurrence of this HH:MM slot is already behind the clock — the
+ * scheduler's 5-min beat (see worker/tasks.py) can't catch it today, so the first
+ * delivery would actually land tomorrow. */
+const hasSlotPassedToday = (time) => {
+  const [h, m] = time.split(':').map(Number);
+  const now = new Date();
+  const slotToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0, 0);
+  return slotToday <= now;
+};
+
 // A drop target — a time slot row, or the pool ('pool'). Its own component
 // so each row gets its own useDroppable hook instance regardless of how
 // many slots currently exist.
@@ -41,8 +51,24 @@ export default function Dashboard() {
   const [editingSlot, setEditingSlot] = useState(null);
   const [editSlotValue, setEditSlotValue] = useState('');
   const [error, setError] = useState('');
+  // A drop onto a slot whose time already passed today — held here instead of
+  // committing immediately so the row itself can ask before it's scheduled.
+  const [pendingDrop, setPendingDrop] = useState(null);
+  // The caution banner's buttons stay inert for a beat after it mounts: the
+  // drag overlay vanishes the instant a drop lands (dropAnimation is off), so
+  // the trailing native click from that same gesture can land on whatever's
+  // now under the pointer — which, without this, would be "Schedule for
+  // tomorrow" auto-confirming a drop the user never actually saw the banner for.
+  const [dropCautionArmed, setDropCautionArmed] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!pendingDrop) return;
+    setDropCautionArmed(false);
+    const timer = setTimeout(() => setDropCautionArmed(true), 350);
+    return () => clearTimeout(timer);
+  }, [pendingDrop]);
 
   // Mouse starts dragging after a small move so plain clicks on the card's
   // buttons still register; touch waits for a short hold so a swipe can
@@ -127,10 +153,27 @@ export default function Dashboard() {
     // Dropping onto a slot always ADDS it — a topic can live in several
     // slots at once. Removing is explicit: the card's × or a drop on the pool.
     if (current.includes(targetTime)) return;
+
+    // Slot time already gone by today — the next beat tick can't catch it,
+    // so first delivery will actually be tomorrow. Hold the drop and let the
+    // row itself ask, instead of committing right away.
+    if (hasSlotPassedToday(targetTime)) {
+      setPendingDrop({ topic, time: targetTime, current });
+      return;
+    }
+
     setTopicTimes(topic, [...current, targetTime]);
   };
 
   const handleDragCancel = () => setActiveTopic(null);
+
+  const confirmPendingDrop = () => {
+    if (!pendingDrop) return;
+    setTopicTimes(pendingDrop.topic, [...pendingDrop.current, pendingDrop.time]);
+    setPendingDrop(null);
+  };
+
+  const cancelPendingDrop = () => setPendingDrop(null);
 
   const handleUnschedule = (topic, time) => {
     setTopicTimes(topic, (topic.delivery_times || []).filter((t) => t !== time));
@@ -251,6 +294,17 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
+      {!isPool && pendingDrop?.time === time && (
+        <div className="slot-caution animate-fade">
+          <Icon name="alertCircle" size={15} />
+          <span><strong>{formatSlot(time)}</strong> already passed today — first delivery would be tomorrow.</span>
+          <div className="slot-caution-actions">
+            <button className="btn btn-primary btn-sm" onClick={confirmPendingDrop} disabled={!dropCautionArmed}>Schedule for tomorrow</button>
+            <button className="btn btn-secondary btn-sm" onClick={cancelPendingDrop} disabled={!dropCautionArmed}>Cancel</button>
+          </div>
+        </div>
+      )}
 
       {items.length === 0
         ? <p className="board-empty">Drag a topic here to deliver it at this time.</p>

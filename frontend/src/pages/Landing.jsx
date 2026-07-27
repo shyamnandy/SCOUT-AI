@@ -19,12 +19,12 @@ const HERO_TOPICS = [
 ];
 
 const FEATURES = [
-  { icon: 'chat', title: 'Chat Your Interests', desc: 'Tell our AI what you care about in plain language, or pick from curated categories. It asks smart follow-up questions to nail your exact preferences.' },
+  { icon: 'chat', title: 'Chat Your Interests', desc: 'Tell our AI what you want to follow, in plain language — no forms, no keyword picker. It asks 1-2 quick follow-up questions to nail your exact focus.' },
   { icon: 'clock', title: 'Set Your Schedule', desc: 'Choose delivery times for each topic independently. Morning AI news, evening sports updates — your call.' },
-  { icon: 'calendar', title: 'Expiration Control', desc: 'Set topics to run forever or auto-expire after an event ends. World Cup over? Auto-unsubscribe.' },
-  { icon: 'grid', title: '6 Trusted Sources', desc: 'Our AI scouts the internet, selects 6 legitimate sources, scrapes the full content, and discards all the noise.' },
-  { icon: 'archive', title: 'AI Analysis', desc: 'Each article is scored for relevance, filtered for quality, and summarized into clean 2-3 sentence blurbs.' },
-  { icon: 'mail', title: 'Auto-Delivered', desc: 'A beautiful, curated newsletter lands in your inbox automatically. Zero effort. Pure signal.' },
+  { icon: 'calendar', title: 'Expiration Control', desc: 'Set topics to run forever or auto-expire after an event ends. World Cup over? Auto-unsubscribed, no cleanup needed.' },
+  { icon: 'grid', title: 'Credible Sources Only', desc: 'Our AI searches broadly, scores every candidate for credibility and relevance, and keeps one article per real story — no duplicate coverage, no content farms.' },
+  { icon: 'archive', title: 'AI Analysis', desc: 'Each article is scored for relevance and importance, then summarized into a clean 2-3 sentence blurb.' },
+  { icon: 'mail', title: 'Auto-Delivered', desc: 'A curated newsletter lands in your inbox automatically, on schedule. Zero effort. Pure signal.' },
 ];
 
 const TYPE_SPEED_MS = 22;
@@ -61,11 +61,11 @@ export default function Landing() {
           <div className="animate-fade">
             <div className="hero-eyebrow">{today}</div>
             <h1>
-              Stop scrolling.<br />
-              Start <em>knowing.</em>
+              It's not a newsletter.<br />
+              It's autopilot for your <em>curiosity.</em>
             </h1>
             <p>
-              ScoutAI curates personalized newsletters from 6 trusted sources — delivered to your inbox on your schedule. AI-powered. Zero noise.
+              Tell ScoutAI what you want to stay updated on — once. It searches, curates from 6 trusted sources, and delivers straight to your inbox on the schedule you set. No app to check. No search to repeat.
             </p>
             <div className="hero-cta">
               {user ? (
@@ -101,19 +101,86 @@ export default function Landing() {
         </div>
       </section>
 
+      <section className="problem-section">
+        <div className="problem-inner">
+          <div className="page-eyebrow">The Problem</div>
+          <h2>You've checked the same thing three times this week.</h2>
+          <p className="section-sub">
+            The score. The price. The story everyone's talking about. You didn't forget to
+            care — you just don't have someone whose only job is checking for you.
+          </p>
+          <div className="repeat-row">
+            <span className="repeat-chip">"Did the match end?"</span>
+            <span className="repeat-chip">"Is the price down yet?"</span>
+            <span className="repeat-chip">"Any update on—"</span>
+            <span className="repeat-chip">"Wait, did I miss it?"</span>
+          </div>
+        </div>
+      </section>
+
       <section className="features-section">
         <h2 className="animate-fade">How It Works</h2>
         <p className="section-sub">A quiet, focused pipeline between the noise of the internet and your inbox.</p>
         <div className="features-grid">
           {FEATURES.map((f, i) => (
             <div key={i} className="glass-card feature-card animate-slide" style={{ animationDelay: `${i * 0.08}s` }}>
-              <div className="feature-icon"><Icon name={f.icon} size={19} /></div>
-              <h3>{f.title}</h3>
+              <h3><Icon name={f.icon} size={16} /> {f.title}</h3>
               <p>{f.desc}</p>
             </div>
           ))}
         </div>
       </section>
+
+      <section className="pricing-section">
+        <div className="glass-card pricing-card">
+          <h2>No subscription. Ever.</h2>
+          <span className="time-tag">Hardly takes 2 <Icon name="clock" size={11} /> minutes</span>
+          <p>
+            ScoutAI itself is 100% free. But it isn't free to run — it needs your own API
+            keys to work, not ours. <strong>Before you can create a topic, you must sign up
+            for a free account on both platforms below and paste your key into your ScoutAI
+            profile.</strong> There's no way around this step — no keys, no newsletter.
+          </p>
+          <div className="platform-row">
+            <a className="platform-badge" href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer">
+              <img src="/groq-mark.svg" alt="" width="30" height="30" />
+              <span className="platform-badge-text">
+                <strong>Groq</strong>
+                <em>Powers the AI &amp; chat</em>
+              </span>
+              <span className="api-key-badge required">Required</span>
+            </a>
+            <a className="platform-badge" href="https://resend.com/api-keys" target="_blank" rel="noopener noreferrer">
+              <img src="/resend-mark.svg" alt="" width="26" height="26" />
+              <span className="platform-badge-text">
+                <strong>Resend</strong>
+                <em>Sends your newsletter</em>
+              </span>
+              <span className="api-key-badge required">Required</span>
+            </a>
+          </div>
+          <div className="pricing-steps">
+            <div><strong>1</strong> Create a free account with Groq and Resend</div>
+            <div><strong>2</strong> Paste both keys into your ScoutAI profile, once</div>
+            <div><strong>3</strong> Never think about billing again — you're always in control of the cost</div>
+          </div>
+        </div>
+      </section>
+
+      <section className="closing-cta">
+        <h2>Put your curiosity on autopilot.</h2>
+        <p>One conversation. Zero repeat searches.</p>
+        {user ? (
+          <Link to="/dashboard"><button className="btn btn-primary btn-lg">Go to Dashboard <Icon name="arrowRight" size={16} /></button></Link>
+        ) : (
+          <Link to="/register"><button className="btn btn-primary btn-lg">Start Free <Icon name="arrowRight" size={16} /></button></Link>
+        )}
+      </section>
+
+      <footer className="site-footer">
+        <span className="footer-brand">ScoutAI<span className="dot">.</span></span>
+        <span className="footer-copy">&copy; {new Date().getFullYear()} ScoutAI — built for people tired of asking twice.</span>
+      </footer>
     </>
   );
 }
