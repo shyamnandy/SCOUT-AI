@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ChatOnboarding from '../components/ChatOnboarding';
 import TopicConfirmCard from '../components/TopicConfirmCard';
 import Icon from '../components/Icon';
@@ -11,6 +12,7 @@ export default function Onboarding() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const { setUser, user } = useAuth();
+  const navigate = useNavigate();
 
   // Each confirmed topic is created right away, so it shows up on the
   // dashboard immediately instead of waiting for a batch "finish" step.
@@ -25,7 +27,14 @@ export default function Onboarding() {
       const res = await createTopic(payload);
       setAddedTopics((prev) => [...prev, res.data]);
       setPendingTopic(null);
-      if (!user.is_onboarded) setUser({ ...user, is_onboarded: true });
+      // First topic of a brand-new account — onboarding is now complete,
+      // so hand off to Profile to grab API keys instead of leaving them
+      // stuck on this page. Returning users adding an extra topic from
+      // /chat (already onboarded) are left where they are.
+      if (!user.is_onboarded) {
+        setUser({ ...user, is_onboarded: true });
+        navigate('/profile');
+      }
     } catch (err) {
       setError(getErrorMessage(err, 'Failed to add topic. Please try again.'));
     } finally {
