@@ -32,6 +32,7 @@ export const loginUser = (data) => api.post('/api/auth/login', data);
 export const getMe = () => api.get('/api/auth/me');
 export const updatePreferences = (data) => api.patch('/api/auth/preferences', data);
 export const updateApiKeys = (data) => api.patch('/api/auth/api-keys', data);
+export const deleteAccount = (password) => api.delete('/api/auth/me', { data: { password } });
 
 // Chat
 export const sendChatMessage = (message) => api.post('/api/chat/onboarding', { message });

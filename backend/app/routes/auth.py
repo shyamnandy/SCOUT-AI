@@ -3,10 +3,11 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from app.schemas.auth import (
     RegisterRequest, LoginRequest, TokenResponse, UserResponse, PreferencesRequest, ApiKeysRequest,
+    DeleteAccountRequest,
 )
 from app.services.auth_service import hash_password, verify_password, create_access_token
 from app.services.crypto_service import encrypt
-from app.database import users_collection
+from app.database import users_collection, topics_collection, newsletters_collection, chat_sessions_collection
 from app.models.user import create_user_doc
 from app.utils import get_current_user
 from bson import ObjectId
@@ -116,3 +117,26 @@ async def update_api_keys(
         has_resend_key=bool(fresh.get("resend_api_key")),
         has_groq_key=bool(fresh.get("groq_api_key")),
     )
+
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_account(
+    data: DeleteAccountRequest,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Permanently delete the current user's account and every record scoped
+    to it — topics, newsletter history, and any in-progress chat session.
+    Nothing belonging to other users is touched.
+    """
+    if not verify_password(data.password, user["password_hash"]):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect password",
+        )
+
+    user_id = user["id"]
+    await topics_collection.delete_many({"user_id": user_id})
+    await newsletters_collection.delete_many({"user_id": user_id})
+    await chat_sessions_collection.delete_many({"user_id": user_id})
+    await users_collection.delete_one({"_id": ObjectId(user_id)})

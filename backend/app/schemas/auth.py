@@ -40,3 +40,9 @@ class ApiKeysRequest(BaseModel):
     # Omit a field to leave it unchanged; send "" to clear a previously-set key.
     resend_api_key: str | None = None
     groq_api_key: str | None = None
+
+
+class DeleteAccountRequest(BaseModel):
+    # Re-checked server-side even though the user is already authenticated —
+    # a stolen/lingering session token shouldn't be enough to destroy the account.
+    password: str

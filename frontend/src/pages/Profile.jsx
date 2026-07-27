@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { updatePreferences, updateApiKeys, getErrorMessage } from '../services/api';
+import { updatePreferences, updateApiKeys, deleteAccount, getErrorMessage } from '../services/api';
 import Icon from '../components/Icon';
 
 const PROVIDERS = [
@@ -38,6 +38,10 @@ export default function Profile() {
   const [keysMsg, setKeysMsg] = useState('');
   const [toast, setToast] = useState(null);
   const [highlightKeys, setHighlightKeys] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -123,6 +127,27 @@ export default function Profile() {
     navigate('/');
   };
 
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setDeletePassword('');
+    setDeleteError('');
+  };
+
+  const handleDeleteAccount = async (e) => {
+    e.preventDefault();
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      await deleteAccount(deletePassword);
+      logout();
+      navigate('/');
+    } catch (err) {
+      setDeleteError(getErrorMessage(err, 'Could not delete your account.'));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const hasAnyInput = keyInputs.resend_api_key || keyInputs.groq_api_key;
 
   return (
@@ -203,6 +228,11 @@ export default function Profile() {
             const isSet = user[p.hasField];
             return (
               <div className={`api-key-card ${p.required && !isSet ? 'needs-attention' : ''}`} key={p.field}>
+                {p.field === 'resend_api_key' && !isSet && (
+                  <div className="resend-callout">
+                    Sign up at Resend with <strong>{user.email}</strong> — the same email you used for ScoutAI — so your free key can send here.
+                  </div>
+                )}
                 <div className="api-key-card-head">
                   <span className="api-key-card-title"><Icon name={p.icon} size={14} /> {p.name}</span>
                   {p.required
@@ -252,6 +282,58 @@ export default function Profile() {
       <button className="btn btn-danger" onClick={handleLogout}>
         <Icon name="logout" size={16} /> Log Out
       </button>
+
+      <div className="glass-card" style={{ marginTop: 24, borderColor: 'rgba(177,67,58,0.25)' }}>
+        <div className="profile-row">
+          <div>
+            <div className="profile-row-label">Delete Account</div>
+            <div className="profile-row-hint">
+              Permanently deletes your account, topics, and newsletter history. This cannot be undone.
+            </div>
+          </div>
+          <button className="btn btn-danger" onClick={() => setShowDeleteModal(true)}>
+            <Icon name="trash" size={16} /> Delete Account
+          </button>
+        </div>
+      </div>
+
+      {showDeleteModal && (
+        <div className="modal-overlay" onClick={closeDeleteModal}>
+          <div className="glass-card modal animate-fade" onClick={(e) => e.stopPropagation()}>
+            <h2>Delete Account</h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.6, marginBottom: 4 }}>
+              <Icon name="alertCircle" size={14} style={{ verticalAlign: -2, marginRight: 4 }} />
+              This permanently deletes your account, every topic, and your entire newsletter history.
+              There is no way to recover this data afterward.
+            </p>
+            <form onSubmit={handleDeleteAccount}>
+              <div className="input-group">
+                <label>Confirm your password</label>
+                <input
+                  type="password"
+                  className="input-field"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  autoComplete="current-password"
+                  autoFocus
+                  required
+                />
+              </div>
+
+              {deleteError && (
+                <div className="toast toast-error" style={{ position: 'static' }}>{deleteError}</div>
+              )}
+
+              <div className="modal-actions">
+                <button type="button" className="btn btn-secondary" onClick={closeDeleteModal} disabled={deleting}>Cancel</button>
+                <button type="submit" className="btn btn-danger" disabled={deleting || !deletePassword}>
+                  {deleting ? 'Deleting...' : 'Permanently Delete'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
