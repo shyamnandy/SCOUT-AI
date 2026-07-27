@@ -1,9 +1,7 @@
 """Content curation service — scrapes, analyzes, filters, and generates newsletters."""
 
-import base64
 import json
 from datetime import datetime, timezone
-from functools import lru_cache
 from html import escape
 
 from langchain_community.document_loaders import WebBaseLoader
@@ -23,24 +21,21 @@ FINAL_ARTICLE_COUNT = 5
 RELEVANCE_FLOOR = 0.4
 
 TEMPLATE_DIR = Path(__file__).parent.parent.parent / "templates"
-LOGO_PATH = TEMPLATE_DIR / "assets" / "logo_email.png"
 
 # Autoescape on: article titles and summaries come from scraped third-party
 # pages, so they must never be rendered as raw HTML into the email.
 _jinja_env = Environment(autoescape=True)
 
 
-@lru_cache()
-def _logo_data_uri() -> str | None:
+def _logo_src() -> str:
     """
-    Base64-embed the masthead logo so it renders with zero external
-    dependency — no CDN/hosting needed, and it survives even when the
-    recipient's client blocks remote images. Returns None (template just
-    omits the <img>) until the asset file exists.
+    Absolute URL to the masthead logo, served by the deployed frontend.
+
+    Gmail and Outlook both refuse to render `data:` URI <img> tags in email
+    bodies, so the logo must be a real publicly-reachable URL instead of an
+    inline base64 blob.
     """
-    if not LOGO_PATH.exists():
-        return None
-    return "data:image/png;base64," + base64.b64encode(LOGO_PATH.read_bytes()).decode("ascii")
+    return f"{settings.FRONTEND_URL.rstrip('/')}/logo.png"
 
 
 def _today_label() -> str:
@@ -258,7 +253,7 @@ Return ONLY the JSON, no other text."""
             articles=articles,
             closing=closing,
             user_name=user_name,
-            logo_src=_logo_data_uri(),
+            logo_src=_logo_src(),
             today=_today_label(),
         )
     except Exception as e:
@@ -286,7 +281,7 @@ def render_batch_newsletter(sections: list[dict], user_name: str, slot_label: st
             user_name=user_name,
             slot_label=slot_label,
             topic_count=len(sections),
-            logo_src=_logo_data_uri(),
+            logo_src=_logo_src(),
             today=_today_label(),
         )
     except Exception as e:
