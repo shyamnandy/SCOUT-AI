@@ -18,14 +18,21 @@ const formatSlot = (t) => {
   return `${hour12}:${String(m).padStart(2, '0')} ${suffix}`;
 };
 
-/** True once today's occurrence of this HH:MM slot is already behind the clock — the
- * scheduler's 5-min beat (see worker/tasks.py) can't catch it today, so the first
- * delivery would actually land tomorrow. */
+// Dispatch matches whenever a beat tick lands within this many minutes of the
+// slot, on either side — see WINDOW_MINUTES / _match_window in worker/tasks.py.
+// Future slots are always fine, no matter how soon: some later tick will
+// eventually fall inside their window. Only once a slot is more than this many
+// minutes behind "now" does it fall outside the window entirely and roll to
+// tomorrow's candidate instead.
+const CAUTION_GRACE_MINUTES = 5;
+
+/** True once today's occurrence of this HH:MM slot is far enough behind the
+ * clock that no beat tick can still catch it today. */
 const hasSlotPassedToday = (time) => {
   const [h, m] = time.split(':').map(Number);
   const now = new Date();
   const slotToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0, 0);
-  return slotToday <= now;
+  return now - slotToday > CAUTION_GRACE_MINUTES * 60 * 1000;
 };
 
 // A drop target — a time slot row, or the pool ('pool'). Its own component
