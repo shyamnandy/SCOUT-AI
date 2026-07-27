@@ -22,7 +22,7 @@ export default function Register() {
       localStorage.setItem('scoutai_token', token);
       const meRes = await getMe();
       login(token, meRes.data);
-      navigate('/onboarding');
+      navigate('/chat');
     } catch (err) {
       setError(getErrorMessage(err, 'Registration failed.'));
     } finally {

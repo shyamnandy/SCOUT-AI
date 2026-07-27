@@ -6,7 +6,7 @@ export default function Navbar() {
 
   return (
     <nav className="navbar">
-      <Link to={user ? '/dashboard' : '/'} className="navbar-brand">
+      <Link to="/" className="navbar-brand">
         <img src="/logo.png" alt="" width="42" height="42" className="navbar-logo" />
         ScoutAI<span className="dot">.</span>
       </Link>

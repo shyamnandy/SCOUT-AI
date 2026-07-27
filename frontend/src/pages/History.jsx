@@ -42,7 +42,9 @@ export default function History() {
               >
                 <div className="newsletter-item-header">
                   <span className="newsletter-item-title">{nl.title}</span>
-                  <span className="newsletter-item-date">{new Date(nl.delivered_at).toLocaleDateString()}</span>
+                  <span className="newsletter-item-date">
+                    {new Date(nl.delivered_at).toLocaleDateString()} {new Date(nl.delivered_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                  </span>
                 </div>
                 <div className="newsletter-item-meta">
                   <span><Icon name="grid" size={13} /> {nl.topic_name}</span>
