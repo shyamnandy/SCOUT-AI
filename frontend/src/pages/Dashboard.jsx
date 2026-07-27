@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { DndContext, DragOverlay, useDroppable, MouseSensor, TouchSensor, useSensor, useSensors, pointerWithin } from '@dnd-kit/core';
 import TopicCard from '../components/TopicCard';
 import TopicForm from '../components/TopicForm';
 import TimePicker from '../components/TimePicker';
@@ -17,12 +18,24 @@ const formatSlot = (t) => {
   return `${hour12}:${String(m).padStart(2, '0')} ${suffix}`;
 };
 
+// A drop target — a time slot row, or the pool ('pool'). Its own component
+// so each row gets its own useDroppable hook instance regardless of how
+// many slots currently exist.
+function BoardRow({ dropId, isPool, children }) {
+  const { setNodeRef, isOver } = useDroppable({ id: dropId });
+  return (
+    <div ref={setNodeRef} className={`board-row ${isPool ? 'is-pool' : ''} ${isOver ? 'drag-over' : ''}`}>
+      {children}
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [topics, setTopics] = useState([]);
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingTopic, setEditingTopic] = useState(null);
-  const [dragOver, setDragOver] = useState(null);
+  const [activeTopic, setActiveTopic] = useState(null);
   const [newSlotTime, setNewSlotTime] = useState('08:00');
   const [addingSlot, setAddingSlot] = useState(false);
   const [editingSlot, setEditingSlot] = useState(null);
@@ -30,6 +43,14 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  // Mouse starts dragging after a small move so plain clicks on the card's
+  // buttons still register; touch waits for a short hold so a swipe can
+  // still scroll the page/track instead of always starting a drag.
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+  );
 
   useEffect(() => {
     if (user && !user.is_onboarded) { navigate('/onboarding'); return; }
@@ -83,18 +104,17 @@ export default function Dashboard() {
     }
   };
 
-  const handleDrop = (e, targetTime) => {
-    e.preventDefault();
-    setDragOver(null);
-    let payload;
-    try {
-      payload = JSON.parse(e.dataTransfer.getData('application/json'));
-    } catch {
-      return;
-    }
-    const topic = topics.find((t) => t.id === payload.id);
+  const handleDragStart = ({ active }) => {
+    setActiveTopic(topics.find((t) => t.id === active.data.current?.topicId) || null);
+  };
+
+  const handleDragEnd = ({ active, over }) => {
+    setActiveTopic(null);
+    if (!over) return;
+    const topic = topics.find((t) => t.id === active.data.current?.topicId);
     if (!topic) return;
 
+    const targetTime = over.id === 'pool' ? null : over.id;
     const current = topic.delivery_times || [];
 
     if (targetTime === null) {
@@ -109,6 +129,8 @@ export default function Dashboard() {
     if (current.includes(targetTime)) return;
     setTopicTimes(topic, [...current, targetTime]);
   };
+
+  const handleDragCancel = () => setActiveTopic(null);
 
   const handleUnschedule = (topic, time) => {
     setTopicTimes(topic, (topic.delivery_times || []).filter((t) => t !== time));
@@ -177,6 +199,7 @@ export default function Dashboard() {
       {items.map((t) => (
         <TopicCard
           key={`${keyPrefix}-${t.id}`}
+          dragId={`${keyPrefix}-${t.id}`}
           topic={t}
           fromTime={fromTime}
           onEdit={setEditingTopic}
@@ -189,17 +212,7 @@ export default function Dashboard() {
   );
 
   const renderRow = ({ key, time, title, icon, items, isPool }) => (
-    <div
-      key={key}
-      className={`board-row ${isPool ? 'is-pool' : ''} ${dragOver === key ? 'drag-over' : ''}`}
-      onDragOver={(e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = isPool ? 'move' : 'copy';
-        setDragOver(key);
-      }}
-      onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(null); }}
-      onDrop={(e) => handleDrop(e, time)}
-    >
+    <BoardRow key={key} dropId={key} isPool={isPool}>
       <div className="board-row-head">
         {!isPool && editingSlot === time ? (
           <span className="board-row-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={(e) => e.stopPropagation()}>
@@ -242,7 +255,7 @@ export default function Dashboard() {
       {items.length === 0
         ? <p className="board-empty">Drag a topic here to deliver it at this time.</p>
         : renderCards(items, time, key)}
-    </div>
+    </BoardRow>
   );
 
   return (
@@ -276,59 +289,90 @@ export default function Dashboard() {
         <div className="glass-card stat-card"><div className="stat-value">{pooledCount}</div><div className="stat-label">In Pool</div></div>
       </div>
 
-      <div className="board-layout">
-        <div className="board-rows">
-          {slots.map((time) =>
-            renderRow({
-              key: time,
-              time,
-              title: formatSlot(time),
-              icon: 'clock',
-              // Paused topics live in the pool, not in their slots.
-              items: topics.filter((t) => t.is_active && (t.delivery_times || []).includes(time)),
-              isPool: false,
-            })
-          )}
-        </div>
+      {/* pointerWithin: the row the pointer/finger is literally over wins,
+          rather than whichever row the card's full ghost rect overlaps most —
+          more predictable, especially on touch where a finger hides the
+          exact point. autoScroll speed ramps from 0 at the threshold edge up
+          to `acceleration` px/tick right at the viewport edge (library
+          default is 10; 12 is a mild bump, not a runaway one). */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={pointerWithin}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+        autoScroll={{ acceleration: 12 }}
+      >
+        <div className="board-layout">
+          <div className="board-rows">
+            {slots.map((time) =>
+              renderRow({
+                key: time,
+                time,
+                title: formatSlot(time),
+                icon: 'clock',
+                // Paused topics live in the pool, not in their slots.
+                items: topics.filter((t) => t.is_active && (t.delivery_times || []).includes(time)),
+                isPool: false,
+              })
+            )}
+          </div>
 
-        <aside className="board-pool">
-          <div
-            className={`board-row is-pool ${dragOver === 'pool' ? 'drag-over' : ''}`}
-            onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOver('pool'); }}
-            onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(null); }}
-            onDrop={(e) => handleDrop(e, null)}
-          >
-            <div className="board-row-head">
-              <span className="board-row-title"><Icon name="inbox" size={15} /> Topic Pool</span>
-              <span className="board-row-count">{pooledCount}</span>
-            </div>
+          <aside className="board-pool">
+            <BoardRow dropId="pool" isPool>
+              <div className="board-row-head">
+                <span className="board-row-title"><Icon name="inbox" size={15} /> Topic Pool</span>
+                <span className="board-row-count">{pooledCount}</span>
+              </div>
 
-            <div className="pool-scroll">
-              <div className="pool-partitions">
-                <div className="pool-partition">
-                  <div className="pool-partition-head">
-                    <span>Unscheduled</span>
-                    <span className="board-row-count">{unscheduled.length}</span>
+              <div className="pool-scroll">
+                <div className="pool-partitions">
+                  <div className="pool-partition">
+                    <div className="pool-partition-head">
+                      <span>Unscheduled</span>
+                      <span className="board-row-count">{unscheduled.length}</span>
+                    </div>
+                    {unscheduled.length === 0
+                      ? <p className="board-empty">No unscheduled topics.</p>
+                      : renderCards(unscheduled, null, 'unsched', 'pool-list')}
                   </div>
-                  {unscheduled.length === 0
-                    ? <p className="board-empty">No unscheduled topics.</p>
-                    : renderCards(unscheduled, null, 'unsched', 'pool-list')}
-                </div>
 
-                <div className="pool-partition">
-                  <div className="pool-partition-head">
-                    <span>Paused</span>
-                    <span className="board-row-count">{paused.length}</span>
+                  <div className="pool-partition">
+                    <div className="pool-partition-head">
+                      <span>Paused</span>
+                      <span className="board-row-count">{paused.length}</span>
+                    </div>
+                    {paused.length === 0
+                      ? <p className="board-empty">Nothing paused.</p>
+                      : renderCards(paused, null, 'paused', 'pool-list')}
                   </div>
-                  {paused.length === 0
-                    ? <p className="board-empty">Nothing paused.</p>
-                    : renderCards(paused, null, 'paused', 'pool-list')}
                 </div>
               </div>
-            </div>
-          </div>
-        </aside>
-      </div>
+            </BoardRow>
+          </aside>
+        </div>
+
+        {/* Portaled to <body> by dnd-kit — the ghost that actually follows the
+            pointer, immune to the board-track/pool's own scroll clipping.
+            dropAnimation is off: dnd-kit's default snap-back animation looks
+            up the dragged card's DOM node by its *original* id afterward, but
+            a topic scheduled into several slots at once keeps that old id
+            mounted elsewhere on the board — so the default animation can
+            scroll the page back to that other slot right after a drop. */}
+        <DragOverlay dropAnimation={null}>
+          {activeTopic && (
+            <TopicCard
+              topic={activeTopic}
+              dragId="drag-overlay-preview"
+              isOverlay
+              onEdit={() => {}}
+              onDelete={() => {}}
+              onToggle={() => {}}
+              onUnschedule={() => {}}
+            />
+          )}
+        </DragOverlay>
+      </DndContext>
 
       {topics.length === 0 && (
         <div className="empty-state">

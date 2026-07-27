@@ -317,9 +317,14 @@ select.input-field { cursor: pointer; appearance: none;
 .board-track::-webkit-scrollbar-thumb { background: rgba(28,32,43,0.2); border-radius: 4px; }
 .board-track::-webkit-scrollbar-thumb:hover { background: rgba(28,32,43,0.32); }
 
-.topic-card { cursor: grab; }
+.topic-card { cursor: grab; touch-action: manipulation; }
 .topic-card:active { cursor: grabbing; }
 .topic-card.is-expired { opacity: 0.65; }
+.topic-card:not(.is-overlay) { animation: fadeIn 0.2s ease-out; }
+/* The dragged source just dims in place; the DragOverlay ghost below is what
+   actually moves, so it's the one that gets the "lifted" treatment. */
+.topic-card.is-dragging { opacity: 0.55; cursor: grabbing; }
+.topic-card.is-overlay { box-shadow: var(--shadow-lg); transform: scale(1.04); cursor: grabbing; }
 .topic-card-status { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
 
 .icon-btn {
@@ -434,7 +439,7 @@ select.input-field { cursor: pointer; appearance: none;
 .newsletter-item { padding: 20px 24px; cursor: pointer; }
 .newsletter-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .newsletter-item-title { font-family: var(--serif); font-size: 16.5px; font-weight: 600; }
-.newsletter-item-date { font-size: 13px; color: var(--text-muted); }
+.newsletter-item-date { font-size: 13px; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; margin-left: 12px; }
 .newsletter-item-meta { display: flex; gap: 12px; align-items: center; font-size: 13px; color: var(--text-secondary); }
 .newsletter-item-meta > span { display: flex; align-items: center; gap: 5px; }
 
@@ -497,10 +502,37 @@ select.input-field { cursor: pointer; appearance: none;
 }
 .api-keys-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
 .api-key-card {
+  position: relative;
   border: 1px solid var(--border-soft); border-radius: var(--radius-md);
   padding: 16px; background: var(--bg-secondary); transition: border-color 0.2s, background 0.2s;
 }
 .api-key-card.needs-attention { border-color: rgba(185,104,63,0.4); background: var(--accent-soft); }
+
+/* Points at the Resend key box from outside until a key is on file. */
+.resend-callout {
+  position: absolute; top: 50%; right: calc(100% + 14px); transform: translateY(-50%);
+  width: 190px; padding: 10px 12px;
+  background: var(--accent-ink); color: #fdfbf6;
+  font-size: 12px; font-weight: 500; line-height: 1.45;
+  border-radius: var(--radius-md); box-shadow: var(--shadow-md);
+  animation: fadeIn 0.3s ease; z-index: 5;
+}
+.resend-callout strong { color: #fff; }
+.resend-callout::after {
+  content: ''; position: absolute; top: 50%; right: -6px; transform: translateY(-50%);
+  width: 0; height: 0; border-top: 6px solid transparent; border-bottom: 6px solid transparent;
+  border-left: 6px solid var(--accent-ink);
+}
+@media (max-width: 1100px) {
+  .resend-callout {
+    top: auto; bottom: calc(100% + 10px); left: 0; right: auto; transform: none; width: 100%;
+  }
+  .resend-callout::after {
+    top: 100%; right: 16px; bottom: auto; transform: none;
+    border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid var(--accent-ink);
+    border-bottom: none;
+  }
+}
 .api-key-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }
 .api-key-card-title { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; }
 .api-key-badge {

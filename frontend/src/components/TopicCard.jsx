@@ -1,10 +1,16 @@
+import { useDraggable } from '@dnd-kit/core';
 import Icon from './Icon';
 
 /**
  * Full topic card, draggable between the pool and time-slot rows.
  * `fromTime` is set when the card is rendered inside a slot row.
+ * `dragId` must be unique among *currently mounted* cards — a topic
+ * scheduled into several slots at once renders one card per slot
+ * simultaneously, so `topic.id` alone can collide.
+ * `isOverlay` renders the static ghost clone shown in the DragOverlay —
+ * visual only, never itself grabbable.
  */
-export default function TopicCard({ topic, fromTime = null, onEdit, onDelete, onToggle, onUnschedule }) {
+export default function TopicCard({ topic, dragId, fromTime = null, isOverlay = false, onEdit, onDelete, onToggle, onUnschedule }) {
   const isExpired =
     topic.lifecycle === 'ephemeral' &&
     topic.expiration_date &&
@@ -28,17 +34,23 @@ export default function TopicCard({ topic, fromTime = null, onEdit, onDelete, on
     statusText = 'Unscheduled';
   }
 
-  const handleDragStart = (e) => {
-    e.dataTransfer.setData('application/json', JSON.stringify({ id: topic.id }));
-    e.dataTransfer.effectAllowed = 'copy';
-  };
+  // The card itself never moves — it just dims to mark the drag source.
+  // A <DragOverlay> (rendered once in Dashboard) is what actually follows
+  // the pointer, portaled to <body> so it isn't clipped by the scrollable
+  // track/pool it started in and always paints above every row.
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: dragId,
+    data: { topicId: topic.id },
+    disabled: isOverlay,
+  });
 
   return (
     <div
-      className={`glass-card topic-card ${isExpired ? 'is-expired' : ''}`}
+      ref={setNodeRef}
+      className={`glass-card topic-card ${isExpired ? 'is-expired' : ''} ${isDragging ? 'is-dragging' : ''} ${isOverlay ? 'is-overlay' : ''}`}
       data-category={topic.category}
-      draggable
-      onDragStart={handleDragStart}
+      {...listeners}
+      {...attributes}
     >
       <div className="topic-card-header">
         <div>
