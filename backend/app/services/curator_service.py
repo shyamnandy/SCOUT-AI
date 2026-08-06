@@ -1,5 +1,6 @@
 """Content curation service — scrapes, analyzes, filters, and generates newsletters."""
 
+import asyncio
 import json
 from datetime import datetime, timezone
 from html import escape
@@ -13,12 +14,25 @@ from pathlib import Path
 
 settings = get_settings()
 
-# How many articles ship in one topic's section. Fewer than the shortlist that
-# feeds it, so same-story duplicates can be dropped without leaving gaps.
-FINAL_ARTICLE_COUNT = 5
+# How many articles ship in one topic's section. The floor is what a normal
+# news day should produce; the ceiling only gets used when a topic genuinely
+# has that much distinct news. Both are below the shortlist that feeds them,
+# so same-story duplicates can be dropped without leaving gaps.
+MIN_ARTICLE_COUNT = 5
+MAX_ARTICLE_COUNT = 10
+# Articles past the minimum have to earn the slot. Without this, a busy topic
+# pads out to ten every time and the extra five are routine follow-ups that
+# make the newsletter longer without making it more informative.
+EXTRA_ARTICLE_IMPORTANCE_FLOOR = 0.6
 # Below this relevance an article is dropped outright rather than counted
 # toward the target — a thin section beats a padded one.
 RELEVANCE_FLOOR = 0.4
+
+# How many source pages to fetch at once. Bounded rather than unlimited: a
+# shortlist can hold several articles from one outlet, and firing every
+# request simultaneously is a good way to get rate-limited or blocked.
+SCRAPE_CONCURRENCY = 6
+SCRAPE_TIMEOUT_SECONDS = 10
 
 TEMPLATE_DIR = Path(__file__).parent.parent.parent / "templates"
 
@@ -49,22 +63,27 @@ def _today_label() -> str:
     return f"{now:%A, %B} {now.day}, {now:%Y}"
 
 
-async def scrape_sources(sources: list[dict]) -> list[dict]:
-    """
-    Scrape full content from the selected source URLs.
-    Falls back to the search snippet if scraping fails.
-    """
-    enriched = []
+def _load_url(url: str):
+    """Blocking fetch of one page. Always called via a worker thread."""
+    loader = WebBaseLoader(url)
+    loader.requests_kwargs = {"timeout": SCRAPE_TIMEOUT_SECONDS}
+    return loader.load()
 
-    for source in sources:
-        url = source.get("url", "")
-        full_content = source.get("content", "")
 
-        if url:
+async def _scrape_one(source: dict, semaphore: asyncio.Semaphore) -> dict:
+    """Fetch one source's full text, falling back to its search snippet."""
+    url = source.get("url", "")
+    full_content = source.get("content", "")
+
+    if url:
+        async with semaphore:
             try:
-                loader = WebBaseLoader(url)
-                loader.requests_kwargs = {"timeout": 10}
-                docs = loader.load()
+                # WebBaseLoader.load() is synchronous — it uses `requests`
+                # internally — so awaiting it directly is not an option and
+                # calling it inline would block the event loop, freezing every
+                # other request the API is serving for the duration of the
+                # scrape. to_thread hands it to a worker thread instead.
+                docs = await asyncio.to_thread(_load_url, url)
                 if docs and docs[0].page_content:
                     # Take first 3000 chars to stay within token limits
                     full_content = docs[0].page_content[:3000]
@@ -72,14 +91,28 @@ async def scrape_sources(sources: list[dict]) -> list[dict]:
                 print(f"Scraping failed for {url}: {e}")
                 # Keep the snippet from search as fallback
 
-        enriched.append({
-            "title": source.get("title", "Untitled"),
-            "url": url,
-            "content": full_content,
-            "source_name": source.get("source_name", "Unknown"),
-        })
+    return {
+        "title": source.get("title", "Untitled"),
+        "url": url,
+        "content": full_content,
+        "source_name": source.get("source_name", "Unknown"),
+    }
 
-    return enriched
+
+async def scrape_sources(sources: list[dict]) -> list[dict]:
+    """
+    Scrape full content from the selected source URLs, concurrently.
+
+    Sequentially this is the slowest stage in the pipeline by a wide margin —
+    a full shortlist of dead-slow hosts costs SHORTLIST_SIZE × the timeout —
+    and it runs inside the cron tick, where that delay stalls every other
+    topic due in the same slot.
+
+    `gather` preserves input order, so the shortlist's importance ranking
+    survives into the curation prompt.
+    """
+    semaphore = asyncio.Semaphore(SCRAPE_CONCURRENCY)
+    return await asyncio.gather(*(_scrape_one(s, semaphore) for s in sources))
 
 
 async def filter_and_summarize(
@@ -93,7 +126,8 @@ async def filter_and_summarize(
     Final curation pass over the scraped shortlist:
     1. Re-label which event each article covers, now that full text is available
     2. Score relevance and how important the story is
-    3. Keep one article per event and summarize the top FINAL_ARTICLE_COUNT
+    3. Keep one article per event and summarize between MIN_ARTICLE_COUNT and
+       MAX_ARTICLE_COUNT of them, depending on how much cleared the bar
 
     The event re-labeling matters here even though search already did it:
     search only saw short snippets, which routinely hide that two articles are
@@ -161,7 +195,7 @@ Return ONLY the JSON array, no other text."""
                 source_name=a.get("source_name", "Unknown"),
                 relevance_score=0.7,
             )
-            for a in scraped_articles[:FINAL_ARTICLE_COUNT]
+            for a in scraped_articles[:MIN_ARTICLE_COUNT]
         ]
 
     relevant = [a for a in scored if _read_score(a, "relevance_score") >= RELEVANCE_FLOOR]
@@ -169,7 +203,7 @@ Return ONLY the JSON array, no other text."""
     # here in code, so a thin news day yields fewer articles rather than the
     # same story told several ways.
     distinct = dedupe_by_event(relevant, "importance")
-    selected = distinct[:FINAL_ARTICLE_COUNT]
+    selected = _select_articles(distinct)
 
     print(
         f"[curate] '{topic_name}': {len(scored)} scored -> {len(relevant)} above floor -> "
@@ -189,6 +223,27 @@ Return ONLY the JSON array, no other text."""
         except KeyError as e:
             print(f"Skipping malformed curated article, missing {e}")
     return articles
+
+
+def _select_articles(distinct: list[dict]) -> list[dict]:
+    """
+    Take a variable number of articles depending on how much the topic earned.
+
+    `distinct` arrives sorted by importance, descending. The first
+    MIN_ARTICLE_COUNT are taken unconditionally — that's the promised size of
+    an issue. Past that, each additional story is included only while it clears
+    EXTRA_ARTICLE_IMPORTANCE_FLOOR, so a genuinely busy week can run to
+    MAX_ARTICLE_COUNT while a quiet one still stops at the minimum.
+
+    The loop breaks rather than filters: the input is sorted, so the first
+    article that misses the bar guarantees none after it clears either.
+    """
+    selected = distinct[:MIN_ARTICLE_COUNT]
+    for article in distinct[MIN_ARTICLE_COUNT:MAX_ARTICLE_COUNT]:
+        if _read_score(article, "importance") < EXTRA_ARTICLE_IMPORTANCE_FLOOR:
+            break
+        selected.append(article)
+    return selected
 
 
 def _read_score(item: dict, field: str) -> float:

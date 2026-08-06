@@ -12,8 +12,10 @@ settings = get_settings()
 # How many distinct-event sources to shortlist for scraping. Deliberately
 # larger than the number of articles that ship, so the final curation stage
 # has slack to drop same-story duplicates that only full text reveals and
-# still fill the newsletter from genuinely different events.
-SHORTLIST_SIZE = 10
+# still fill the newsletter from genuinely different events. Must stay
+# comfortably above curator_service.MAX_ARTICLE_COUNT, or a busy topic can
+# never actually reach its ceiling.
+SHORTLIST_SIZE = 16
 
 # Reputable outlets to anchor the LLM's legitimacy judgment, grouped by
 # category so a sports topic gets pointed at ESPN rather than Bloomberg.
@@ -28,7 +30,7 @@ CATEGORY_OUTLET_HINTS = {
 DEFAULT_OUTLET_HINT = "Reuters, AP, BBC"
 
 
-def get_search_tool(max_results: int = 12, tavily_api_key: str | None = None) -> TavilySearch:
+def get_search_tool(max_results: int = 20, tavily_api_key: str | None = None) -> TavilySearch:
     """Get the Tavily search tool configured for recent news.
 
     Args:
