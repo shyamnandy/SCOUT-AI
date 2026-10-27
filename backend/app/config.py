@@ -58,7 +58,7 @@ def get_llm(temperature: float = 0.7, model: str = None, groq_api_key: str | Non
     if not key:
         raise RuntimeError("No Groq API key configured (set GROQ_API_KEY or a per-user key)")
     return ChatOpenAI(
-        model=model or "llama-3.3-70b-versatile",
+        model=model or "openai/gpt-oss-120b",
         api_key=key,
         base_url="https://api.groq.com/openai/v1",
         temperature=temperature,

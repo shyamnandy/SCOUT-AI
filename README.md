@@ -49,7 +49,7 @@ dropped without leaving gaps.
 | Frontend | React 18 + Vite |
 | Styling | Vanilla CSS (dark glassmorphism) |
 | Backend API | FastAPI (Python) |
-| AI/LLM | LangChain + Groq (Llama 3.3 70B) |
+| AI/LLM | LangChain + Groq (OpenAI GPT-OSS 120B) |
 | Web Search | Tavily Search API |
 | Database | MongoDB Atlas |
 | Auth | JWT |
